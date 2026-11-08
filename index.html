@@ -1,32 +1,18 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Territoria | NASA VIIRS Flood Test</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Territoria - Test previsión del río</title>
 <style>
-html,body,#map{height:100%;margin:0}body{font-family:system-ui;background:#071521}.top{position:fixed;z-index:1000;top:10px;left:10px;right:10px;display:flex;pointer-events:none}.box{pointer-events:auto;background:#081b29ee;color:#eefbff;border:1px solid #28556b;border-radius:13px;box-shadow:0 8px 24px #0006}.brand{padding:9px 12px;font-weight:850}.brand b{color:#54d7ff}.panel{position:fixed;z-index:1000;left:10px;bottom:14px;width:min(370px,calc(100% - 20px));padding:12px}.title{font-weight:800;margin-bottom:8px}.legend{display:grid;grid-template-columns:1fr 1fr;gap:6px}.item{display:flex;align-items:center;gap:7px;background:#102c3d;padding:7px;border-radius:9px;font-size:12px}.dot{width:12px;height:12px;border-radius:3px}.f{background:#e40055}.r{background:#d6b400}.w{background:#2697d8}.n{background:#9aa6ad}.buttons{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.btn{background:#12384d;color:white;border:1px solid #376c86;border-radius:9px;padding:7px 9px;font-weight:700;cursor:pointer}.btn.on{background:#0b5874;border-color:#57d9ff}.info{font-size:11px;line-height:1.4;color:#a9c4d1;margin-top:9px}.badge{display:inline-block;background:#174159;border-radius:8px;padding:3px 6px;color:#dff7ff}.leaflet-control-attribution{font-size:9px}
+*{box-sizing:border-box}body{margin:0;background:#eef3f7;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18242d}.wrap{max-width:520px;margin:auto;padding:14px}.card{background:#fff;border-radius:16px;box-shadow:0 8px 26px #18314318;overflow:hidden}.head{padding:18px 18px 10px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #e6edf2}.pin{font-size:24px}.head h1{font-size:18px;margin:0}.loc{font-size:13px;color:#63737e;margin-top:3px}.body{padding:16px}.unit{font-size:12px;color:#596873}.chart{height:270px;position:relative;margin-top:10px;border-left:1px solid #ccd6dd;border-bottom:1px solid #ccd6dd;background:repeating-linear-gradient(to bottom,#fff 0,#fff 53px,#e9eef2 54px)}.level{position:absolute;left:0;right:0;height:2px}.ext{top:30px;background:#b50d18}.danger{top:105px;background:#f44336}.warn{top:170px;background:#ff982f}.now{position:absolute;top:0;bottom:0;left:66%;border-left:2px dashed #65747c}.now span{position:absolute;top:4px;left:7px;background:#fff;padding:2px 5px;font-size:13px}.flow{position:absolute;left:0;right:0;bottom:30px;height:3px;background:#2378e5}.dot{position:absolute;width:6px;height:6px;border-radius:50%;background:#2378e5;bottom:28px}.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0 6px;font-size:12px}.lg b{display:block;font-size:17px;color:#23303a}.ball{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}.divider{border:0;border-top:1px solid #dfe6eb;margin:18px 0}.info h2{font-size:17px;margin:0 0 14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.label{color:#64747f;font-size:11px}.value{font-weight:650;font-size:13px;margin-top:3px}.status{margin-top:18px;padding:11px;border-radius:10px;background:#edf8f0;color:#267242;font-size:13px;font-weight:650}.note{padding:12px 16px;background:#f7fafc;color:#65747d;font-size:11px}.badge{display:inline-block;background:#e9f2ff;color:#1769c2;border-radius:20px;padding:5px 9px;font-size:11px;margin-top:8px}
 </style>
-</head><body>
-<div id="map"></div>
-<div class="top"><div class="box brand">🌊 <b>TERRITORIA</b> · INUNDACIONES ARGENTINA <small>NASA TEST</small></div></div>
-<div class="box panel">
-<div class="title">NASA VIIRS · Flood 2-Day</div>
-<div class="legend"><div class="item"><i class="dot f"></i>Flood</div><div class="item"><i class="dot r"></i>Recurring Flood</div><div class="item"><i class="dot w"></i>Surface Water</div><div class="item"><i class="dot n"></i>Sin datos suficientes</div></div>
-<div class="buttons"><button id="nasa" class="btn on">🛰️ NASA VIIRS</button><button id="gps" class="btn">📍 Mi GPS</button></div>
-<div class="info"><span class="badge">Producto real</span> Capa oficial <b>VIIRS Combined Flood, ventana de 2 días</b> servida mediante NASA GIBS. La capa puede contener falsos positivos relacionados con nubes/sombras; NASA recomienda contrastarla con la imagen visible. Este test no genera alertas propias.</div>
-</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-const map=L.map('map',{zoomControl:false}).setView([-38.4,-63.6],4);L.control.zoom({position:'bottomright'}).addTo(map);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
-// NASA GIBS WMTS EPSG:3857 endpoint. TIME uses UTC date; default test uses current UTC day.
-const day=new Date().toISOString().slice(0,10);
-const gibs=L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Combined_Flood_2-Day/default/${day}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png`,{
-  maxZoom:8,opacity:.78,attribution:'NASA EOSDIS GIBS / LANCE VIIRS'
-}).addTo(map);
-document.getElementById('nasa').onclick=e=>{if(map.hasLayer(gibs)){map.removeLayer(gibs);e.currentTarget.classList.remove('on')}else{gibs.addTo(map);e.currentTarget.classList.add('on')}};
-document.getElementById('gps').onclick=()=>map.locate({setView:true,maxZoom:10});
-map.on('locationfound',e=>L.circleMarker(e.latlng,{radius:7,color:'#fff',fillColor:'#38bdf8',fillOpacity:1}).bindPopup('📍 Tu ubicación').addTo(map).openPopup());
-map.on('locationerror',()=>alert('No se pudo obtener la ubicación.'));
-</script></body></html>
+</head>
+<body><div class="wrap"><div class="card">
+<div class="head"><div class="pin">📍</div><div><h1>Previsión del río</h1><div class="loc">Potrerillos · Luján de Cuyo, Mendoza</div><span class="badge">TEST TERRITORIA</span></div></div>
+<div class="body"><div class="unit">Descarga / caudal en m³/s</div>
+<div class="chart"><div class="level ext"></div><div class="level danger"></div><div class="level warn"></div><div class="now"><span>Ahora</span></div><div class="flow"></div><i class="dot" style="left:58%"></i><i class="dot" style="left:63%"></i><i class="dot" style="left:69%"></i><i class="dot" style="left:75%"></i><i class="dot" style="left:82%"></i><i class="dot" style="left:90%"></i></div>
+<div class="legend"><div class="lg"><span class="ball" style="background:#ff982f"></span>Advertencia<b>437</b></div><div class="lg"><span class="ball" style="background:#f44336"></span>Peligro<b>946</b></div><div class="lg"><span class="ball" style="background:#b50d18"></span>Extrema<b>1.846</b></div></div>
+<hr class="divider"><div class="info"><h2>Información del indicador</h2><div class="grid"><div><div class="label">Localidad</div><div class="value">Potrerillos</div></div><div><div class="label">Departamento</div><div class="value">Luján de Cuyo</div></div><div><div class="label">Cauce</div><div class="value">Río Mendoza</div></div><div><div class="label">Fuente</div><div class="value">Datos simulados</div></div><div><div class="label">Punto de control</div><div class="value">TEST-RIO-001</div></div><div><div class="label">Última lectura</div><div class="value" id="time">Ahora</div></div></div>
+<div class="status">● Caudal de prueba por debajo del nivel de advertencia</div></div></div>
+<div class="note">⚠️ Prototipo visual. Los valores son simulados y no representan mediciones ni previsiones reales.</div>
+</div></div><script>document.getElementById('time').textContent=new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});</script></body></html>
