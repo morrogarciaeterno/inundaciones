@@ -18,6 +18,9 @@
 const DGI_URL='https://serviciosweb.cloud.irrigacion.gov.ar/services/telemetria/api/public/dato-medicions/fullDto?distribucionCodigo.equals=2&redPrimaria.equals=false&redPrimaria.equalsActive=true';
 // Si DGI bloquea CORS, reemplaza la línea siguiente por la URL de tu Worker proxy.
 const DATA_URL=DGI_URL;
+const GOOGLE_API_BASE='https://floodforecasting.googleapis.com/v1';
+// Para produccion pon aqui un Worker, por ejemplo: /google-flood. No pongas la API key en el navegador.
+const GOOGLE_PROXY='';
 const map=L.map('map',{zoomControl:true}).setView([-32.89,-68.84],8);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 const group=L.featureGroup().addTo(map);let chart;
@@ -37,8 +40,33 @@ function normalize(x,i){
 function color(v){if(v===null)return '#84939b';if(v>=100)return '#b30f20';if(v>=50)return '#f0522d';if(v>=20)return '#f49b2f';return '#36a269'}
 async function locality(lat,lon,fallback){try{const u=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&accept-language=es`;const r=await fetch(u);if(!r.ok)throw 0;const j=await r.json(),a=j.address||{};return {place:a.city||a.town||a.village||a.hamlet||a.suburb||fallback,dept:a.county||a.state_district||a.state||'Mendoza'}}catch{return {place:fallback,dept:'Mendoza'}}}
 function historyFromRaw(raw,current){let arr=get(raw,['historial','mediciones','datos','serie','values']);if(!Array.isArray(arr))arr=[];const pts=arr.map((e,i)=>({x:get(e,['fecha','fechaMedicion','date','timestamp'])||i,y:num(get(e,['valor','caudal','medicion','value']))})).filter(p=>p.y!==null).slice(-30);if(!pts.length&&current!==null)pts.push({x:'Actual',y:current});return pts}
-async function show(p){document.getElementById('panel').classList.add('open');document.getElementById('detail').innerHTML='<div class="empty">Consultando localidad…</div>';const loc=await locality(p.lat,p.lon,p.name);const pts=historyFromRaw(p.raw,p.value);const v=p.value===null?'Sin dato':p.value.toLocaleString('es-AR',{maximumFractionDigits:2});document.getElementById('detail').innerHTML=`<div class="place">${loc.place}</div><div class="dept">${loc.dept}</div><span class="status">● Dato real DGI</span><div class="value">${v}</div><div class="unit">Caudal / medición informada por la fuente</div><div class="grid"><div class="box"><div class="lab">Punto</div><div class="val">${p.name}</div></div><div class="box"><div class="lab">Cauce o red</div><div class="val">${p.river}</div></div><div class="box"><div class="lab">Identificador</div><div class="val">${p.id}</div></div><div class="box"><div class="lab">Fecha fuente</div><div class="val">${p.date}</div></div></div><div class="chartWrap"><canvas id="chart"></canvas></div><div class="notice">Fuente: API pública de telemetría del Departamento General de Irrigación de Mendoza. Las coordenadas se usan internamente; en pantalla se prioriza la localidad obtenida por geocodificación inversa.</div>`;if(chart)chart.destroy();chart=new Chart(document.getElementById('chart'),{type:'line',data:{labels:pts.map(q=>String(q.x).slice(0,16)),datasets:[{label:'Medición',data:pts.map(q=>q.y),borderColor:'#1769aa',backgroundColor:'#1769aa22',fill:true,tension:.25,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6}},y:{beginAtZero:true}}}})}
+async function show(p){document.getElementById('panel').classList.add('open');document.getElementById('detail').innerHTML='<div class="empty">Consultando localidad…</div>';const loc=await locality(p.lat,p.lon,p.name);const pts=historyFromRaw(p.raw,p.value);const v=p.value===null?'Sin dato':p.value.toLocaleString('es-AR',{maximumFractionDigits:2});document.getElementById('detail').innerHTML=`<div class="place">${loc.place}</div><div class="dept">${loc.dept}</div><span class="status">● Dato real DGI</span><div class="value">${v}</div><div class="unit">Caudal / medición informada por la fuente</div><div class="grid"><div class="box"><div class="lab">Punto</div><div class="val">${p.name}</div></div><div class="box"><div class="lab">Cauce o red</div><div class="val">${p.river}</div></div><div class="box"><div class="lab">Identificador</div><div class="val">${p.id}</div></div><div class="box"><div class="lab">Fecha fuente</div><div class="val">${p.date}</div></div></div><div class="chartWrap"><canvas id="chart"></canvas></div><div id="googleBox" class="box" style="margin-top:14px"><div class="lab">Google Flood Forecasting</div><div class="val" id="googleState">Buscando estación Google cercana…</div><div id="googleChartWrap" style="height:180px;margin-top:10px;display:none"><canvas id="googleChart"></canvas></div></div><div class="notice">Fuente observada: API pública de telemetría del Departamento General de Irrigación de Mendoza. Las coordenadas se usan internamente; en pantalla se prioriza la localidad obtenida por geocodificación inversa.</div>`;loadGoogle(p,loc);if(chart)chart.destroy();chart=new Chart(document.getElementById('chart'),{type:'line',data:{labels:pts.map(q=>String(q.x).slice(0,16)),datasets:[{label:'Medición',data:pts.map(q=>q.y),borderColor:'#1769aa',backgroundColor:'#1769aa22',fill:true,tension:.25,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:6}},y:{beginAtZero:true}}}})}
+
+let googleChart;
+async function googleRequest(path, options={}){
+  if(!GOOGLE_PROXY) throw new Error('Falta configurar el Worker/proxy de Google Flood');
+  const u=GOOGLE_PROXY.replace(/\/$/,'')+'/'+path.replace(/^\//,'');
+  const r=await fetch(u,options); if(!r.ok) throw new Error(`Google HTTP ${r.status}`); return r.json();
+}
+async function loadGoogle(p,loc){
+ const state=document.getElementById('googleState'); if(!state)return;
+ try{
+   /* Primera integración: el Worker recibe el área/punto, llama oficialmente a
+      POST /v1/gauges:searchGaugesByArea y luego GET /v1/gauges:queryGaugeForecasts.
+      El contrato simple del Worker hacia este HTML es:
+      {gauge:{id,name}, forecasts:[{time,value}], issuedTime, unit}
+   */
+   const q=new URLSearchParams({lat:p.lat,lon:p.lon,radiusKm:'75'});
+   const j=await googleRequest('nearby?'+q.toString());
+   const g=j.gauge||{}, arr=Array.isArray(j.forecasts)?j.forecasts:[];
+   if(!g.id||!arr.length)throw new Error('sin pronóstico Google para este punto');
+   state.innerHTML=`<b>${g.name||g.id}</b><br>Pronóstico Google · emitido ${j.issuedTime||'sin fecha'}`;
+   const wrap=document.getElementById('googleChartWrap');wrap.style.display='block';
+   if(googleChart)googleChart.destroy();
+   googleChart=new Chart(document.getElementById('googleChart'),{type:'line',data:{labels:arr.map(x=>new Date(x.time).toLocaleString('es-AR',{day:'2-digit',hour:'2-digit'})),datasets:[{label:`Previsión ${j.unit||''}`,data:arr.map(x=>x.value),borderColor:'#7b1fa2',backgroundColor:'#7b1fa21c',fill:true,tension:.25,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{boxWidth:10}}},scales:{x:{ticks:{maxTicksLimit:6}}}}});
+ }catch(e){state.textContent=e.message+'. DGI sigue funcionando de forma independiente.'}
+}
+
 async function load(){const state=document.getElementById('loadState');try{const r=await fetch(DATA_URL,{headers:{Accept:'application/json'}});if(!r.ok)throw new Error(`HTTP ${r.status}`);const j=await r.json();const raw=flattenPayload(j),points=raw.map(normalize).filter(p=>p.lat!==null&&p.lon!==null&&p.lat>-90&&p.lat<90&&p.lon>-180&&p.lon<180);if(!points.length)throw new Error('La respuesta no contiene coordenadas reconocibles');points.forEach(p=>{const c=color(p.value),icon=L.divIcon({className:'',html:`<div class="dot" style="width:18px;height:18px;background:${c}"></div>`,iconSize:[18,18],iconAnchor:[9,9]});L.marker([p.lat,p.lon],{icon}).bindTooltip(p.name).on('click',()=>show(p)).addTo(group)});map.fitBounds(group.getBounds().pad(.15));document.getElementById('counter').textContent=`Puntos reales: ${points.length}`;state.textContent=`Datos DGI cargados: ${points.length} puntos con ubicación.`}catch(e){state.innerHTML=`No se pudo leer directamente la API DGI: <b>${e.message}</b>. El HTML está preparado para datos reales, pero si el navegador bloquea CORS debes colocar tu Worker proxy en la constante DATA_URL.`;state.style.background='#fff1ee';state.style.color='#a23326'}}
 document.getElementById('close').onclick=e=>{e.stopPropagation();document.getElementById('panel').classList.remove('open')};document.getElementById('panelTop').onclick=()=>document.getElementById('panel').classList.add('open');load();
 </script></body></html>
-
