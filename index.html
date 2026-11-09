@@ -63,7 +63,6 @@
             .side{position:relative;height:auto}
             .mapwrap,#map{height:50vh}
         }
-            .leaflet-pane.leaflet-overlay-pane img { mix-blend-mode: screen; }
     </style>
 </head>
 <body>
@@ -92,10 +91,10 @@
                 <button id="toggleIgnBtn" class="btn-toggle">
                     <span id="ignIcon">👁️</span> <span id="ignText">Ocultar Zonas de Inundación (IGN)</span>
                 </button>
-                <button id="toggleNasaBtn" class="btn-toggle off"><span id="nasaIcon">🛰️</span> <span id="nasaText">Mostrar NASA VIIRS · 2 días</span></button>
+                <button id="toggleNasaBtn" class="btn-toggle off"><span id="nasaIcon">🛰️</span> <span id="nasaText">Mostrar NASA filtrado · sin gris</span></button>
                 <div class="sat-controls"><button id="gpsBtn" class="btn-small">📍 Mi GPS</button><button id="todayBtn" class="btn-small">🕒 Último dato</button></div>
                 <input id="floodDate" class="sat-date" type="date" aria-label="Fecha satelital">
-                <div class="legend"><b>Comparación</b><br>🔵 IGN: amenaza cartografiada<br>🔴 NASA VIIRS: compuesto reciente de 2 días<div class="source-note">⬜ Gris: sin datos o clasificación no utilizable. La coincidencia visual aumenta la vigilancia, pero no confirma por sí sola una emergencia.</div></div>
+                <div class="legend"><b>Comparación</b><br>🔵 IGN: amenaza cartografiada<br>🔴 Posible inundación/desborde · 🟡 recurrente · 🔵 agua superficial<div class="source-note">Fondo gris, negro y verde auxiliar oculto por Territoria. La señal satelital requiere contraste con información oficial/local.</div></div>
             </div>
         </div>
 
@@ -136,14 +135,47 @@ const ignRiesgoLayer = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/ign_rie
     attribution: 'IGN - IG-GIRD',
     opacity: 0.8
 }).addTo(map);
-const nasaFloodLayer = L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', {
- layers:'VIIRS_Combined_Flood_2-Day', format:'image/png', transparent:true, version:'1.1.1', opacity:.64,
- attribution:'NASA EOSDIS LANCE / GIBS · VIIRS'
+// Filtro visual Territoria sobre las teselas oficiales NASA VIIRS.
+// Conserva clases cromáticas útiles y vuelve transparente el fondo auxiliar.
+const FilteredWmsLayer = L.TileLayer.WMS.extend({
+    createTile(coords, done) {
+        const tile = document.createElement('canvas');
+        const size = this.getTileSize();
+        tile.width = size.x; tile.height = size.y;
+        const ctx = tile.getContext('2d', {willReadFrequently:true});
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                ctx.drawImage(img,0,0,size.x,size.y);
+                const frame=ctx.getImageData(0,0,size.x,size.y), px=frame.data;
+                for(let i=0;i<px.length;i+=4){
+                    const r=px[i],g=px[i+1],b=px[i+2],a=px[i+3];
+                    const sat=Math.max(r,g,b)-Math.min(r,g,b);
+                    const red=r>105&&r>g*1.28&&r>b*1.18;
+                    const yellow=r>125&&g>85&&b<95&&Math.abs(r-g)<115;
+                    const cyan=b>95&&g>85&&b>r*1.20&&g>r*1.15;
+                    if(a===0||sat<42||(!red&&!yellow&&!cyan)){px[i+3]=0;continue;}
+                    px[i+3]=Math.min(235,Math.max(145,a));
+                    if(red){px[i]=245;px[i+1]=35;px[i+2]=55;}
+                    else if(yellow){px[i]=245;px[i+1]=180;px[i+2]=25;}
+                    else{px[i]=25;px[i+1]=180;px[i+2]=235;}
+                }
+                ctx.clearRect(0,0,size.x,size.y);ctx.putImageData(frame,0,0);done(null,tile);
+            }catch(error){console.warn('Filtro NASA no disponible en esta tesela',error);done(error,tile);}
+        };
+        img.onerror=error=>done(error,tile);
+        img.src=this.getTileUrl(coords);
+        return tile;
+    }
 });
-
+const nasaFloodLayer = new FilteredWmsLayer('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{
+    layers:'VIIRS_Combined_Flood_2-Day',format:'image/png',transparent:true,version:'1.1.1',
+    opacity:.92,tileSize:256,attribution:'NASA EOSDIS LANCE / GIBS · VIIRS · filtrado Territoria'
+});
 const layer = L.layerGroup().addTo(map);
 
-L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Amenaza (IGN)": ignRiesgoLayer, "Inundación NASA VIIRS · 2 días": nasaFloodLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
+L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Amenaza (IGN)": ignRiesgoLayer, "NASA VIIRS filtrado · sin gris": nasaFloodLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
 
 function setRegion(lat, lon, zoom, btn) {
     map.setView([lat, lon], zoom);
@@ -377,15 +409,11 @@ const safe=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':
 async function zoneName(lat,lon){try{const r=await fetch(`https://apis.datos.gob.ar/georef/api/ubicacion?lat=${lat}&lon=${lon}`);const j=await r.json(),x=j.ubicacion||j;const a=x.localidad?.nombre||x.municipio?.nombre||x.departamento?.nombre||x.provincia?.nombre||'Zona consultada';return [a,x.departamento?.nombre,x.provincia?.nombre].filter((v,i,A)=>v&&A.indexOf(v)===i).join(' · ')}catch{return 'Zona consultada'}}
 async function rain(lat,lon){try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=precipitation&hourly=precipitation_probability,precipitation&forecast_days=2&timezone=auto`);const j=await r.json(),now=Date.now();let mm=0,p=0,n=0;(j.hourly?.time||[]).forEach((t,i)=>{const z=Date.parse(t);if(z>=now&&z<=now+86400000){mm+=Number(j.hourly.precipitation[i]||0);p=Math.max(p,Number(j.hourly.precipitation_probability[i]||0));n++}});return {ok:n>0,now:Number(j.current?.precipitation||0),mm,p}}catch{return{ok:false}}}
 function near(lat,lon){const rad=Math.PI/180,R=6371,dist=(a,b,c,d)=>{const x=(c-a)*rad,y=(d-b)*rad,q=Math.sin(x/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(y/2)**2;return 2*R*Math.atan2(Math.sqrt(q),Math.sqrt(1-q))};return rows.map(st=>{const a=n(st.latitud),b=n(st.longitud);return a===null||b===null?null:{st,km:dist(lat,lon,a,b)}}).filter(Boolean).filter(x=>x.km<=80).sort((a,b)=>a.km-b.km).slice(0,5)}
-async function analyse(e){const {lat,lng}=e;document.getElementById('detail').innerHTML='<div class="status">Analizando zona…</div>';const [z,w]=await Promise.all([zoneName(lat,lng),rain(lat,lng)]),ns=near(lat,lng); const pb=document.getElementById('placeBadge'); pb.textContent='📍 '+z; pb.style.display='block';if(queryMarker)map.removeLayer(queryMarker);queryMarker=L.circleMarker(e,{radius:8,color:'#fff',weight:2,fillColor:'#e11d48',fillOpacity:1}).addTo(map);const dgi=ns.length?ns.map(x=>`<div class="box" style="margin-top:6px"><div class="lab">DGI · ${x.km.toFixed(1)} km</div><div class="val">${safe(x.st.nombre||x.st.codigo)}</div><div class="muted">Caudal ${fmt(x.st.caudal)} ${safe(x.st.unidadCaudal||'l/s')} · Altura ${fmt(x.st.altura)} ${safe(x.st.unidadAltura||'cm')}</div></div>`).join(''):'<div class="muted">Sin estaciones DGI dentro de 80 km.</div>';document.getElementById('detail').innerHTML=`<div class="lab">Zona territorial</div><b style="font-size:20px">📍 ${safe(z)}</b><div class="status"><b>COMPARADOR TERRITORIA</b><br>IGN ${map.hasLayer(ignRiesgoLayer)?'VISIBLE':'OCULTO'} · NASA VIIRS ${map.hasLayer(nasaFloodLayer)?'VISIBLE '+safe(floodDateInput.value):'OCULTO'}</div><div class="grid"><div class="box"><div class="lab">Lluvia actual</div><div class="val">${w.ok?w.now.toFixed(1)+' mm':'S/D'}</div></div><div class="box"><div class="lab">Próximas 24 h</div><div class="val">${w.ok?w.mm.toFixed(1)+' mm · '+w.p+'%':'S/D'}</div></div></div><div class="lab">Estaciones próximas</div>${dgi}<div class="source-note">IGN muestra amenaza cartografiada. NASA VIIRS muestra un compuesto del día seleccionado y el día anterior. Compará visualmente ambas capas; esto no confirma una emergencia ni reemplaza fuentes oficiales.<br>Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`}
+async function analyse(e){const {lat,lng}=e;document.getElementById('detail').innerHTML='<div class="status">Analizando zona…</div>';const [z,w]=await Promise.all([zoneName(lat,lng),rain(lat,lng)]),ns=near(lat,lng); const pb=document.getElementById('placeBadge'); pb.textContent='📍 '+z; pb.style.display='block';if(queryMarker)map.removeLayer(queryMarker);queryMarker=L.circleMarker(e,{radius:8,color:'#fff',weight:2,fillColor:'#e11d48',fillOpacity:1}).addTo(map);const dgi=ns.length?ns.map(x=>`<div class="box" style="margin-top:6px"><div class="lab">DGI · ${x.km.toFixed(1)} km</div><div class="val">${safe(x.st.nombre||x.st.codigo)}</div><div class="muted">Caudal ${fmt(x.st.caudal)} ${safe(x.st.unidadCaudal||'l/s')} · Altura ${fmt(x.st.altura)} ${safe(x.st.unidadAltura||'cm')}</div></div>`).join(''):'<div class="muted">Sin estaciones DGI dentro de 80 km.</div>';document.getElementById('detail').innerHTML=`<div class="lab">Zona territorial</div><b style="font-size:20px">📍 ${safe(z)}</b><div class="status"><b>COMPARADOR TERRITORIA</b><br>IGN ${map.hasLayer(ignRiesgoLayer)?'VISIBLE':'OCULTO'} · NASA FILTRADO ${map.hasLayer(nasaFloodLayer)?'VISIBLE '+safe(floodDateInput.value):'OCULTO'}</div><div class="grid"><div class="box"><div class="lab">Lluvia actual</div><div class="val">${w.ok?w.now.toFixed(1)+' mm':'S/D'}</div></div><div class="box"><div class="lab">Próximas 24 h</div><div class="val">${w.ok?w.mm.toFixed(1)+' mm · '+w.p+'%':'S/D'}</div></div></div><div class="lab">Estaciones próximas</div>${dgi}<div class="source-note">IGN muestra amenaza cartografiada. NASA VIIRS muestra un compuesto de dos días; Territoria oculta fondo gris, negro y verde auxiliar. Compará visualmente ambas capas; esto no confirma una emergencia ni reemplaza fuentes oficiales.<br>Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`}
 map.on('click',e=>analyse(e.latlng));
-document.getElementById('toggleNasaBtn').onclick=function(){nasaVisible=!nasaVisible;if(nasaVisible){nasaFloodLayer.setParams({time:floodDateInput.value},false).addTo(map);this.classList.remove('off');nasaText.textContent='Ocultar NASA VIIRS · 2 días';nasaIcon.textContent='👁️'}else{map.removeLayer(nasaFloodLayer);this.classList.add('off');nasaText.textContent='Mostrar NASA VIIRS · 2 días';nasaIcon.textContent='🛰️'}};
-floodDateInput.onchange=()=>nasaFloodLayer.setParams({time:floodDateInput.value},true);document.getElementById('todayBtn').onclick=()=>{floodDateInput.value=latestDay();nasaFloodLayer.setParams({time:floodDateInput.value},true)};
+document.getElementById('toggleNasaBtn').onclick=function(){nasaVisible=!nasaVisible;if(nasaVisible){nasaFloodLayer.setParams({time:floodDateInput.value},false).addTo(map);this.classList.remove('off');nasaText.textContent='Ocultar NASA filtrado · sin gris';nasaIcon.textContent='👁️'}else{map.removeLayer(nasaFloodLayer);this.classList.add('off');nasaText.textContent='Mostrar NASA filtrado · sin gris';nasaIcon.textContent='🛰️'}};
+floodDateInput.onchange=()=>{nasaFloodLayer.setParams({time:floodDateInput.value},false);nasaFloodLayer.redraw();};document.getElementById('todayBtn').onclick=()=>{floodDateInput.value=latestDay();nasaFloodLayer.setParams({time:floodDateInput.value},false);nasaFloodLayer.redraw()};
 document.getElementById('gpsBtn').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const e=L.latLng(p.coords.latitude,p.coords.longitude);map.setView(e,13);if(gpsMarker)map.removeLayer(gpsMarker);gpsMarker=L.circleMarker(e,{radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map);analyse(e)},x=>alert('GPS: '+x.message),{enableHighAccuracy:true,timeout:12000}):alert('GPS no disponible');
-
-
-
-
 
 load();
 </script>
