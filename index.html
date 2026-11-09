@@ -57,12 +57,7 @@
         #detail { flex-grow: 1; margin-top: 10px; overflow-y: auto; }
 
         .sat-date{width:100%;margin-top:6px;color-scheme:dark}.sat-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.btn-small{background:#0f2744;border:1px solid #2c4d6f;cursor:pointer;font-weight:700;font-size:11px;padding:8px}.legend{margin-top:8px;padding:9px;border:1px solid #27445e;border-radius:9px;background:#0d1e32;font-size:11px;line-height:1.45}.source-note{font-size:10px;color:#8ea4bb;line-height:1.35;margin-top:8px}
-        .gfm-box{display:none;margin-top:8px;padding:10px;border:1px solid #4c3b78;border-radius:10px;background:#111d33;font-size:11px;line-height:1.45}
-        .gfm-row{display:flex;justify-content:space-between;gap:10px;margin:4px 0}
-        .gfm-row b{text-align:right}
-        .gfm-progress{height:6px;background:#1c2e49;border-radius:8px;overflow:hidden;margin-top:8px}
-        .gfm-progress span{display:block;height:100%;background:#8b5cf6;width:10%;transition:width .2s}
-        .btn-gfm{background:#6d28d9!important}.btn-gfm:hover{background:#7c3aed!important}.btn-gfm:disabled{opacity:.65;cursor:wait}
+        .place-badge{position:absolute;z-index:650;top:56px;left:52px;max-width:360px;background:#071827ee;border:1px solid #38bdf8;border-radius:10px;padding:8px 12px;color:#eaf3ff;font-size:12px;font-weight:800;box-shadow:0 6px 20px #0006;display:none}
         @media(max-width:760px){
             .app{display:block;height:auto}
             .side{position:relative;height:auto}
@@ -100,8 +95,6 @@
                 <div class="sat-controls"><button id="gpsBtn" class="btn-small">📍 Mi GPS</button><button id="todayBtn" class="btn-small">🕒 Último dato</button></div>
                 <input id="floodDate" class="sat-date" type="date" aria-label="Fecha satelital">
                 <div class="legend"><b>Comparación</b><br>🔵 IGN: amenaza cartografiada<br>🔴 NASA VIIRS: compuesto reciente de 2 días<div class="source-note">⬜ Gris: sin datos o clasificación no utilizable. La coincidencia visual aumenta la vigilancia, pero no confirma por sí sola una emergencia.</div></div>
-                <button id="scanGfmBtn" class="btn-action btn-gfm">🛰️ Analizar GFM en esta vista</button>
-                <div id="gfmStatus" class="gfm-box"></div>
             </div>
         </div>
 
@@ -111,6 +104,7 @@
     </aside>
     <main class="mapwrap">
         <div class="top" id="count">Estaciones: --</div>
+        <div class="place-badge" id="placeBadge">📍 Zona consultada</div>
         <div id="map"></div>
     </main>
 </div>
@@ -125,7 +119,6 @@ let ignVisible = true;
 let nasaVisible = false, queryMarker = null, gpsMarker = null;
 
 const map = L.map('map', {preferCanvas: true}).setView([-32.89, -68.84], 10);
-const gfmFloodLayer = L.layerGroup().addTo(map);
 setTimeout(() => { map.invalidateSize(); }, 200);
 
 const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -149,7 +142,7 @@ const nasaFloodLayer = L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg
 
 const layer = L.layerGroup().addTo(map);
 
-L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Amenaza (IGN)": ignRiesgoLayer, "Inundación NASA VIIRS · 2 días": nasaFloodLayer, "GFM analizado · Sentinel-1": gfmFloodLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
+L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Amenaza (IGN)": ignRiesgoLayer, "Inundación NASA VIIRS · 2 días": nasaFloodLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
 
 function setRegion(lat, lon, zoom, btn) {
     map.setView([lat, lon], zoom);
@@ -383,7 +376,7 @@ const safe=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':
 async function zoneName(lat,lon){try{const r=await fetch(`https://apis.datos.gob.ar/georef/api/ubicacion?lat=${lat}&lon=${lon}`);const j=await r.json(),x=j.ubicacion||j;const a=x.localidad?.nombre||x.municipio?.nombre||x.departamento?.nombre||x.provincia?.nombre||'Zona consultada';return [a,x.departamento?.nombre,x.provincia?.nombre].filter((v,i,A)=>v&&A.indexOf(v)===i).join(' · ')}catch{return 'Zona consultada'}}
 async function rain(lat,lon){try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=precipitation&hourly=precipitation_probability,precipitation&forecast_days=2&timezone=auto`);const j=await r.json(),now=Date.now();let mm=0,p=0,n=0;(j.hourly?.time||[]).forEach((t,i)=>{const z=Date.parse(t);if(z>=now&&z<=now+86400000){mm+=Number(j.hourly.precipitation[i]||0);p=Math.max(p,Number(j.hourly.precipitation_probability[i]||0));n++}});return {ok:n>0,now:Number(j.current?.precipitation||0),mm,p}}catch{return{ok:false}}}
 function near(lat,lon){const rad=Math.PI/180,R=6371,dist=(a,b,c,d)=>{const x=(c-a)*rad,y=(d-b)*rad,q=Math.sin(x/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(y/2)**2;return 2*R*Math.atan2(Math.sqrt(q),Math.sqrt(1-q))};return rows.map(st=>{const a=n(st.latitud),b=n(st.longitud);return a===null||b===null?null:{st,km:dist(lat,lon,a,b)}}).filter(Boolean).filter(x=>x.km<=80).sort((a,b)=>a.km-b.km).slice(0,5)}
-async function analyse(e){const {lat,lng}=e;document.getElementById('detail').innerHTML='<div class="status">Analizando zona…</div>';const [z,w]=await Promise.all([zoneName(lat,lng),rain(lat,lng)]),ns=near(lat,lng);if(queryMarker)map.removeLayer(queryMarker);queryMarker=L.circleMarker(e,{radius:8,color:'#fff',weight:2,fillColor:'#e11d48',fillOpacity:1}).addTo(map);const dgi=ns.length?ns.map(x=>`<div class="box" style="margin-top:6px"><div class="lab">DGI · ${x.km.toFixed(1)} km</div><div class="val">${safe(x.st.nombre||x.st.codigo)}</div><div class="muted">Caudal ${fmt(x.st.caudal)} ${safe(x.st.unidadCaudal||'l/s')} · Altura ${fmt(x.st.altura)} ${safe(x.st.unidadAltura||'cm')}</div></div>`).join(''):'<div class="muted">Sin estaciones DGI dentro de 80 km.</div>';document.getElementById('detail').innerHTML=`<div class="lab">Zona territorial</div><b style="font-size:20px">📍 ${safe(z)}</b><div class="status"><b>COMPARADOR TERRITORIA</b><br>IGN ${map.hasLayer(ignRiesgoLayer)?'VISIBLE':'OCULTO'} · NASA VIIRS ${map.hasLayer(nasaFloodLayer)?'VISIBLE '+safe(floodDateInput.value):'OCULTO'}</div><div class="grid"><div class="box"><div class="lab">Lluvia actual</div><div class="val">${w.ok?w.now.toFixed(1)+' mm':'S/D'}</div></div><div class="box"><div class="lab">Próximas 24 h</div><div class="val">${w.ok?w.mm.toFixed(1)+' mm · '+w.p+'%':'S/D'}</div></div></div><div class="lab">Estaciones próximas</div>${dgi}<div class="source-note">IGN muestra amenaza cartografiada. NASA VIIRS muestra un compuesto del día seleccionado y el día anterior. Compará visualmente ambas capas; esto no confirma una emergencia ni reemplaza fuentes oficiales.<br>Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`}
+async function analyse(e){const {lat,lng}=e;document.getElementById('detail').innerHTML='<div class="status">Analizando zona…</div>';const [z,w]=await Promise.all([zoneName(lat,lng),rain(lat,lng)]),ns=near(lat,lng); const pb=document.getElementById('placeBadge'); pb.textContent='📍 '+z; pb.style.display='block';if(queryMarker)map.removeLayer(queryMarker);queryMarker=L.circleMarker(e,{radius:8,color:'#fff',weight:2,fillColor:'#e11d48',fillOpacity:1}).addTo(map);const dgi=ns.length?ns.map(x=>`<div class="box" style="margin-top:6px"><div class="lab">DGI · ${x.km.toFixed(1)} km</div><div class="val">${safe(x.st.nombre||x.st.codigo)}</div><div class="muted">Caudal ${fmt(x.st.caudal)} ${safe(x.st.unidadCaudal||'l/s')} · Altura ${fmt(x.st.altura)} ${safe(x.st.unidadAltura||'cm')}</div></div>`).join(''):'<div class="muted">Sin estaciones DGI dentro de 80 km.</div>';document.getElementById('detail').innerHTML=`<div class="lab">Zona territorial</div><b style="font-size:20px">📍 ${safe(z)}</b><div class="status"><b>COMPARADOR TERRITORIA</b><br>IGN ${map.hasLayer(ignRiesgoLayer)?'VISIBLE':'OCULTO'} · NASA VIIRS ${map.hasLayer(nasaFloodLayer)?'VISIBLE '+safe(floodDateInput.value):'OCULTO'}</div><div class="grid"><div class="box"><div class="lab">Lluvia actual</div><div class="val">${w.ok?w.now.toFixed(1)+' mm':'S/D'}</div></div><div class="box"><div class="lab">Próximas 24 h</div><div class="val">${w.ok?w.mm.toFixed(1)+' mm · '+w.p+'%':'S/D'}</div></div></div><div class="lab">Estaciones próximas</div>${dgi}<div class="source-note">IGN muestra amenaza cartografiada. NASA VIIRS muestra un compuesto del día seleccionado y el día anterior. Compará visualmente ambas capas; esto no confirma una emergencia ni reemplaza fuentes oficiales.<br>Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`}
 map.on('click',e=>analyse(e.latlng));
 document.getElementById('toggleNasaBtn').onclick=function(){nasaVisible=!nasaVisible;if(nasaVisible){nasaFloodLayer.setParams({time:floodDateInput.value},false).addTo(map);this.classList.remove('off');nasaText.textContent='Ocultar NASA VIIRS · 2 días';nasaIcon.textContent='👁️'}else{map.removeLayer(nasaFloodLayer);this.classList.add('off');nasaText.textContent='Mostrar NASA VIIRS · 2 días';nasaIcon.textContent='🛰️'}};
 floodDateInput.onchange=()=>nasaFloodLayer.setParams({time:floodDateInput.value},true);document.getElementById('todayBtn').onclick=()=>{floodDateInput.value=latestDay();nasaFloodLayer.setParams({time:floodDateInput.value},true)};
@@ -391,156 +384,7 @@ document.getElementById('gpsBtn').onclick=()=>navigator.geolocation?navigator.ge
 
 
 
-// --- GFM / Sentinel-1: módulo aislado. No interviene en GPS, DGI, IGN ni NASA. ---
-const GFM_STAC_SEARCH = 'https://stac.eodc.eu/api/v1/search';
-const gfmStatus = document.getElementById('gfmStatus');
-let gfmRunning = false;
-let geoTiffLoader = null;
 
-function gfmHtml(html) {
-    gfmStatus.style.display = 'block';
-    gfmStatus.innerHTML = html;
-}
-function gfmProgress(label, percent) {
-    gfmHtml(`<b>Copernicus GFM · Sentinel-1</b><div class="muted">${safe(label)}</div><div class="gfm-progress"><span style="width:${Math.max(5,Math.min(100,percent))}%"></span></div>`);
-}
-function loadGeoTiffLibrary() {
-    if (window.GeoTIFF) return Promise.resolve(window.GeoTIFF);
-    if (geoTiffLoader) return geoTiffLoader;
-    geoTiffLoader = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js';
-        script.async = true;
-        script.onload = () => window.GeoTIFF ? resolve(window.GeoTIFF) : reject(Error('GeoTIFF no quedó disponible'));
-        script.onerror = () => reject(Error('No se pudo cargar GeoTIFF'));
-        document.head.appendChild(script);
-    });
-    return geoTiffLoader;
-}
-function gfmViewBbox() {
-    const b = map.getBounds();
-    return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
-}
-function gfmDateRange() {
-    const value = floodDateInput.value || latestDay();
-    const end = new Date(value + 'T23:59:59Z');
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - 6);
-    return `${start.toISOString()}/${end.toISOString()}`;
-}
-function gfmAsset(item) {
-    const assets = item.assets || {};
-    for (const key of ['ensemble_flood_extent','observed_flood_extent','flood_extent']) {
-        if (assets[key]?.href) return {key, href: assets[key].href};
-    }
-    const match = Object.entries(assets).find(([key, value]) => value?.href && /ensemble.*flood|observed.*flood|flood.*extent/i.test(`${key} ${value.title || ''}`));
-    return match ? {key: match[0], href: match[1].href} : null;
-}
-async function gfmSearchItems() {
-    const response = await fetch(GFM_STAC_SEARCH, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({collections:['GFM'], bbox:gfmViewBbox(), datetime:gfmDateRange(), limit:30})
-    });
-    if (!response.ok) throw Error(`Catálogo GFM HTTP ${response.status}`);
-    const json = await response.json();
-    return (json.features || []).filter(item => gfmAsset(item)).slice(0, 8);
-}
-async function gfmReadItem(item) {
-    const asset = gfmAsset(item);
-    const tiff = await window.GeoTIFF.fromUrl(asset.href);
-    const image = await tiff.getImage();
-    const imageBox = image.getBoundingBox();
-    const mapBox = gfmViewBbox();
-    // Los COG de GFM STAC se publican en una cuadrícula geográfica. Se recorta a la vista actual.
-    const box = [Math.max(imageBox[0],mapBox[0]), Math.max(imageBox[1],mapBox[1]), Math.min(imageBox[2],mapBox[2]), Math.min(imageBox[3],mapBox[3])];
-    if (box[0] >= box[2] || box[1] >= box[3]) return {points:[], valid:0, flood:0};
-    const width = 140, height = 140;
-    const raster = await image.readRasters({bbox:box, width, height, interleave:true, resampleMethod:'nearest'});
-    const points = [];
-    let valid = 0, flood = 0;
-    for (let y=0; y<height; y+=2) {
-        for (let x=0; x<width; x+=2) {
-            const value = Number(raster[y*width+x]);
-            if (value !== 255 && Number.isFinite(value)) valid++;
-            if (value === 1) {
-                flood++;
-                if (points.length < 850) {
-                    const lon = box[0] + ((x+.5)/width) * (box[2]-box[0]);
-                    const lat = box[3] - ((y+.5)/height) * (box[3]-box[1]);
-                    points.push([lat,lon]);
-                }
-            }
-        }
-    }
-    return {points, valid, flood, datetime:item.properties?.datetime || item.properties?.start_datetime || ''};
-}
-function gfmDraw(points) {
-    points.forEach((point,index) => {
-        if (index % 2) return;
-        L.circleMarker(point,{radius:2.3,stroke:false,fillColor:'#ff2438',fillOpacity:.88}).addTo(gfmFloodLayer);
-    });
-}
-async function scanGfmView() {
-    if (gfmRunning) return;
-    gfmRunning = true;
-    const button = document.getElementById('scanGfmBtn');
-    const original = button.textContent;
-    button.disabled = true;
-    button.textContent = '⏳ Analizando Sentinel-1…';
-    gfmFloodLayer.clearLayers();
-    try {
-        gfmProgress('Preparando lector geoespacial…',10);
-        await loadGeoTiffLibrary();
-        gfmProgress('Buscando pasadas sobre la vista actual…',20);
-        const items = await gfmSearchItems();
-        if (!items.length) {
-            gfmHtml('<b>Sin escenas GFM</b><div class="muted">No se encontraron productos Sentinel-1 para esta vista durante los 7 días terminados en la fecha elegida.</div>');
-            return;
-        }
-        let processed=0, positive=0, valid=0, flood=0, allPoints=[], lastDate='';
-        for (const item of items) {
-            gfmProgress(`Procesando escena ${processed+1} de ${items.length}…`,25+Math.round((processed/items.length)*60));
-            try {
-                const result = await gfmReadItem(item);
-                processed++;
-                valid += result.valid;
-                flood += result.flood;
-                if (result.flood > 0) positive++;
-                if (result.datetime) lastDate = result.datetime;
-                if (result.points.length) {
-                    allPoints.push(...result.points);
-                    gfmDraw(result.points);
-                }
-            } catch (sceneError) {
-                processed++;
-                console.warn('GFM escena omitida', sceneError);
-            }
-        }
-        let zone = 'Vista actual';
-        const focus = allPoints.length ? L.latLngBounds(allPoints).getCenter() : map.getCenter();
-        try { zone = await zoneName(focus.lat,focus.lng); } catch {}
-        const statusText = allPoints.length ? '🟠 POSIBLE SUPERFICIE INUNDADA' : '🟢 SIN PÍXELES CLASIFICADOS COMO INUNDACIÓN';
-        gfmHtml(`<b>Resultado GFM · Sentinel-1</b>
-          <div class="gfm-row"><span>Escenas procesadas</span><b>${processed}</b></div>
-          <div class="gfm-row"><span>Escenas con detección</span><b>${positive}</b></div>
-          <div class="gfm-row"><span>Muestras válidas</span><b>${valid.toLocaleString('es-AR')}</b></div>
-          <div class="gfm-row"><span>Muestras de inundación</span><b>${flood.toLocaleString('es-AR')}</b></div>
-          <div class="gfm-row"><span>Zona aproximada</span><b>${safe(zone)}</b></div>
-          <div class="gfm-row"><span>Adquisición</span><b>${lastDate ? new Date(lastDate).toLocaleString('es-AR') : 'S/D'}</b></div>
-          <div style="margin-top:8px"><span class="pill ${allPoints.length?'warning':'normal'}">${statusText}</span></div>
-          <div class="source-note">Los puntos rojos son un muestreo visual de píxeles con valor 1 en la extensión de inundación GFM. El valor 255 se trata como sin datos. No es una declaración oficial ni una medición parcelaria.</div>`);
-        if (allPoints.length) map.fitBounds(L.latLngBounds(allPoints),{padding:[25,25],maxZoom:10});
-    } catch (error) {
-        gfmHtml(`<b>Análisis GFM no disponible</b><div class="muted">${safe(error.message)}. GPS, IGN, NASA VIIRS y DGI continúan funcionando de forma independiente.</div>`);
-    } finally {
-        gfmRunning = false;
-        button.disabled = false;
-        button.textContent = original;
-        setTimeout(()=>map.invalidateSize(),100);
-    }
-}
-document.getElementById('scanGfmBtn').addEventListener('click',scanGfmView);
 
 load();
 </script>
