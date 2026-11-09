@@ -73,6 +73,7 @@ const DGI_WORKER = 'https://dgi-proxy.elexpreso17.workers.dev/';
 const KEY = c => 'territoria_dgi_hist_' + c;
 let rows = [], markers = [], selected = null;
 
+// Centramos el mapa en Mendoza inicialmente
 const map = L.map('map', {preferCanvas: true}).setView([-32.89, -68.84], 8);
 
 const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -81,14 +82,15 @@ const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.pn
     className: 'dark-tiles' 
 }).addTo(map);
 
-// Capa WMS de Inundaciones activa POR DEFECTO (.addTo(map))
+// Capa WMS de Inundaciones activa POR DEFECTO
+// NUEVO: Agregamos parámetros de estilo y formato para asegurar que se vean las manchas rojas/celestes
 const ignRiesgoLayer = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/ign_riesgo/ows?', {
     layers: 'amenaza_inundacion', 
     format: 'image/png',
     transparent: true,
-    version: '1.3.0',
+    version: '1.1.1', // Cambiamos a la versión más estable del IGN
     attribution: 'IGN - IG-GIRD',
-    opacity: 0.7
+    opacity: 0.8
 }).addTo(map);
 
 const layer = L.layerGroup().addTo(map);
