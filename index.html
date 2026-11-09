@@ -303,6 +303,116 @@ document.getElementById('toggleIgnBtn').addEventListener('click', function() {
     }
 });
 
+
+// --- TERRITORIA: identificación humana de zonas de inundación ---
+// Convierte el punto pulsado a nombres administrativos mediante Georef.
+// Además consulta la capa WMS visible mediante GetFeatureInfo.
+const GEOREF_URL = 'https://apis.datos.gob.ar/georef/api/ubicacion';
+const IGN_WMS_URL = 'https://wms.ign.gob.ar/geoserver/ign_riesgo/ows?';
+let floodQueryMarker = null;
+
+function escHtml(v) {
+    return String(v ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
+}
+
+async function nombreZona(lat, lon) {
+    try {
+        const u = `${GEOREF_URL}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+        const r = await fetch(u, {cache:'no-store'});
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        const x = j.ubicacion || (Array.isArray(j.ubicaciones) ? j.ubicaciones[0] : null) || j;
+        const localidad = x.localidad?.nombre || x.localidad_censal?.nombre || x.asentamiento?.nombre || '';
+        const municipio = x.municipio?.nombre || '';
+        const depto = x.departamento?.nombre || '';
+        const provincia = x.provincia?.nombre || '';
+        const principal = localidad || municipio || depto || provincia || 'Zona sin nombre disponible';
+        const partes = [principal, depto && depto !== principal ? depto : '', provincia && provincia !== principal ? provincia : ''].filter(Boolean);
+        return {principal, texto: partes.join(' · ')};
+    } catch (e) {
+        return {principal:'Zona consultada', texto:'Nombre territorial no disponible'};
+    }
+}
+
+async function infoAmenazaIGN(latlng) {
+    try {
+        const size = map.getSize();
+        const bounds = map.getBounds();
+        const sw = map.options.crs.project(bounds.getSouthWest());
+        const ne = map.options.crs.project(bounds.getNorthEast());
+        const pt = map.latLngToContainerPoint(latlng);
+        const params = new URLSearchParams({
+            service:'WMS', request:'GetFeatureInfo', version:'1.1.1',
+            layers:'amenaza_inundacion', query_layers:'amenaza_inundacion',
+            styles:'', bbox:`${sw.x},${sw.y},${ne.x},${ne.y}`,
+            width:String(size.x), height:String(size.y), srs:'EPSG:3857',
+            x:String(Math.round(pt.x)), y:String(Math.round(pt.y)),
+            info_format:'application/json', feature_count:'5'
+        });
+        const r = await fetch(IGN_WMS_URL + params.toString(), {cache:'no-store'});
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        return Array.isArray(j.features) ? j.features : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function estacionesCercanas(lat, lon, maxKm=50, limit=3) {
+    const rad = Math.PI / 180;
+    const dist = (a,b,c,d) => {
+        const dLat=(c-a)*rad, dLon=(d-b)*rad;
+        const q=Math.sin(dLat/2)**2 + Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dLon/2)**2;
+        return 6371 * 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1-q));
+    };
+    return rows.map(st => {
+        const a=n(st.latitud), b=n(st.longitud);
+        return (a===null || b===null) ? null : {st, km:dist(lat,lon,a,b)};
+    }).filter(Boolean).filter(x => x.km <= maxKm).sort((a,b)=>a.km-b.km).slice(0,limit);
+}
+
+async function consultarZonaTerritoria(latlng) {
+    const {lat,lng} = latlng;
+    document.getElementById('detail').innerHTML = '<div class="status">💧 Identificando zona territorial y consultando IGN…</div>';
+    const [zona, features] = await Promise.all([nombreZona(lat,lng), infoAmenazaIGN(latlng)]);
+    const cercanas = estacionesCercanas(lat,lng);
+    const enAmenaza = features.length > 0;
+
+    if (floodQueryMarker) map.removeLayer(floodQueryMarker);
+    floodQueryMarker = L.circleMarker(latlng, {
+        radius:8, color:'#fff', weight:2,
+        fillColor: enAmenaza ? '#f59e0b' : '#22c55e', fillOpacity:.95
+    }).addTo(map);
+
+    const estacionesHtml = cercanas.length ? cercanas.map(({st,km}) => {
+        const tr = trend(hist(st.codigo));
+        return `<div class="box" style="margin-top:6px">
+            <div class="lab">Estación DGI · ${km.toFixed(1)} km</div>
+            <div class="val">${escHtml(st.nombre || st.codigo)}</div>
+            <div class="muted">Caudal: ${fmt(st.caudal)} ${escHtml(st.unidadCaudal || 'l/s')} · ${escHtml(tr[0]+' '+tr[1])}</div>
+        </div>`;
+    }).join('') : '<div class="muted" style="margin-top:10px">Sin estaciones DGI dentro de 50 km.</div>';
+
+    document.getElementById('detail').innerHTML = `
+      <div style="margin-top:5px">
+        <div class="lab">Zona territorial</div>
+        <b style="font-size:20px">📍 ${escHtml(zona.principal)}</b>
+        <div class="muted" style="margin-top:3px">${escHtml(zona.texto)}</div>
+        <div style="margin:10px 0">
+          <span class="pill ${enAmenaza ? 'warning' : 'normal'}">${enAmenaza ? '💧 ZONA CON AMENAZA DE INUNDACIÓN' : '✓ SIN ENTIDAD IDENTIFICADA EN EL PUNTO'}</span>
+        </div>
+        <div class="status" style="margin-top:6px">
+          <b>IGN · IG-GIRD</b><br>
+          ${enAmenaza ? 'El punto consultado coincide con una entidad devuelta por la capa amenaza_inundacion.' : 'La consulta puntual no devolvió una entidad de amenaza_inundacion.'}
+        </div>
+        <div class="lab" style="margin-top:14px">Estaciones DGI próximas</div>
+        ${estacionesHtml}
+        <div class="muted" style="margin-top:12px">Coordenadas técnicas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+      </div>`;
+}
+
+map.on('click', e => consultarZonaTerritoria(e.latlng));
+
 load();
 </script>
 </body>
