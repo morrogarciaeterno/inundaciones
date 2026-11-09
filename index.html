@@ -70,8 +70,8 @@
             
             <div class="region-select">
                 <button class="btn-reg active" onclick="setRegion(-32.89, -68.84, 8, this)">Mendoza</button>
-                <button class="btn-reg" onclick="setRegion(-27.45, -58.98, 7, this)">Litoral</button>
-                <button class="btn-reg" onclick="setRegion(-36.50, -57.70, 7, this)">Costa / Bs.As.</button>
+                <button class="btn-reg" onclick="setRegion(-27.45, -58.98, 10, this)">Litoral</button>
+                <button class="btn-reg" onclick="setRegion(-36.50, -57.70, 10, this)">Costa / Bs.As.</button>
             </div>
 
             <input class="search" id="q" placeholder="Buscar estación o código DGI...">
@@ -287,7 +287,6 @@ document.getElementById('toggleIgnBtn').addEventListener('click', function() {
     ignVisible = !ignVisible;
     if (ignVisible) {
         if (!map.hasLayer(ignRiesgoLayer)) map.addLayer(ignRiesgoLayer);
-        this.classList.remove('ok') || this.classList.remove('off');
         this.classList.remove('off');
         document.getElementById('ignIcon').textContent = '👁️';
         document.getElementById('ignText').textContent = 'Ocultar Zonas de Inundación (IGN)';
