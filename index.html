@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
         *{box-sizing:border-box}
-        html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,sans-serif;background:#081321;color:#eaf3ff}
-        .app{height:100%;display:grid;grid-template-columns:420px 1fr}
-        .side{padding:18px;overflow:auto;border-right:1px solid #25405a;background:#0b192b;display:flex;flex-direction:column}
+        html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,sans-serif;background:#081321;color:#eaf3ff;overflow:hidden}
+        .app{height:100vh;width:100vw;display:grid;grid-template-columns:420px 1fr}
+        .side{padding:18px;overflow-y:auto;border-right:1px solid #25405a;background:#0b192b;display:flex;flex-direction:column;height:100vh}
         h1{font-size:19px;margin:0 0 4px 0;display:flex;align-items:center;gap:8px}
         .muted{color:#8ea4bb;font-size:12px}
         .status{margin:10px 0;padding:10px;border-radius:10px;background:#10263b;font-size:12px;border:1px solid #1e3a5f}
@@ -23,12 +23,10 @@
         .lab{font-size:9px;color:#8198ae;text-transform:uppercase;letter-spacing:.5px}
         .val{margin-top:4px;font-size:13px;font-weight:800}
         
-        /* Botones de Región */
         .region-select{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:12px 0}
         .btn-reg{background:#0f2744;border:1px solid #2c4d6f;padding:7px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;color:#93c5fd;text-align:center}
         .btn-reg:hover, .btn-reg.active{background:#0369a1;color:#fff;border-color:#38bdf8}
 
-        /* Botones de Control de Capas */
         .controls-group{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px}
         .btn-toggle{background:#047857;border:none;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:8px;color:#eaf3ff;font-size:12px;transition:background .2s}
         .btn-toggle:hover{background:#059669}
@@ -42,8 +40,8 @@
         .flowarea{fill:#38bdf81a}
         .flowdot{fill:#38bdf8;stroke:#dff6ff;stroke-width:1.5}
         
-        .mapwrap{position:relative}
-        #map{height:100%}
+        .mapwrap{position:relative;height:100vh;width:100%}
+        #map{height:100vh;width:100%;background:#081321}
         .top{position:absolute;z-index:600;top:12px;left:52px;background:#0b192bee;border:1px solid #27445e;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600}
         .dotLabel{font-size:11px;font-weight:600}
         
@@ -54,12 +52,12 @@
         .btn-action:hover{background:#0284c7}
 
         .dark-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
-        #detail { flex-grow: 1; margin-top: 10px; }
+        #detail { flex-grow: 1; margin-top: 10px; overflow-y: auto; }
 
         @media(max-width:760px){
-            .app{display:block}
-            .side{position:fixed;z-index:900;left:0;right:0;bottom:0;height:48%;border-radius:18px 18px 0 0;border-right:0}
-            .mapwrap,#map{height:100%}
+            .app{display:block;height:auto}
+            .side{position:relative;height:auto}
+            .mapwrap,#map{height:50vh}
         }
     </style>
 </head>
@@ -70,7 +68,6 @@
             <h1><span>💧</span> NOVA TERRITORIA</h1>
             <div class="muted">Plataforma de Contingencias Hídricas</div>
             
-            <!-- Selector de Regiones -->
             <div class="region-select">
                 <button class="btn-reg active" onclick="setRegion(-32.89, -68.84, 8, this)">Mendoza</button>
                 <button class="btn-reg" onclick="setRegion(-27.45, -58.98, 7, this)">Litoral</button>
@@ -80,7 +77,6 @@
             <input class="search" id="q" placeholder="Buscar estación o código DGI...">
             <div class="status" id="status">Consultando DGI…</div>
             
-            <!-- Controles de Capas Independientes -->
             <div class="controls-group">
                 <button id="toggleDgiBtn" class="btn-toggle">
                     <span id="dgiIcon">👁️</span> <span id="dgiText">Ocultar Estaciones DGI (Mendoza)</span>
@@ -110,6 +106,7 @@ let dgiVisible = true;
 let ignVisible = true;
 
 const map = L.map('map', {preferCanvas: true}).setView([-32.89, -68.84], 8);
+setTimeout(() => { map.invalidateSize(); }, 200);
 
 const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -117,7 +114,6 @@ const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.pn
     className: 'dark-tiles' 
 }).addTo(map);
 
-// Capa WMS de Amenaza de Inundación del IGN
 const ignRiesgoLayer = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/ign_riesgo/ows?', {
     layers: 'amenaza_inundacion', 
     format: 'image/png',
@@ -133,6 +129,7 @@ L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Riesgo Hídrico (IGN)": i
 
 function setRegion(lat, lon, zoom, btn) {
     map.setView([lat, lon], zoom);
+    setTimeout(() => { map.invalidateSize(); }, 100);
     document.querySelectorAll('.btn-reg').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
@@ -149,3 +146,160 @@ function hist(code) {
         let a = JSON.parse(localStorage.getItem(KEY(code)) || '[]');
         return Array.isArray(a) ? a : [];
     } catch { return []; }
+}
+
+function store(st) {
+    let q = n(st.caudal), t = Date.parse(st.fecha || '');
+    if (q === null || !Number.isFinite(t)) return;
+    let a = hist(st.codigo);
+    if (!a.some(x => x.t === t)) {
+        a.push({ t, q, h: n(st.altura) });
+        localStorage.setItem(KEY(st.codigo), JSON.stringify(a.slice(-15)));
+    }
+}
+
+function lineSvg(a) {
+    if (!a.length) return '<div class="muted" style="padding-top:40px;text-align:center">Sin historial local registrado todavía</div>';
+    let vals = a.map(x => x.q).filter(Number.isFinite), lo = Math.min(...vals), hi = Math.max(...vals);
+    if (hi === lo) { hi = lo + 1; lo = Math.max(0, lo - 1); }
+    let W = 330, H = 110, P = 12, dx = a.length > 1 ? (W - 2 * P) / (a.length - 1) : 0;
+    let pts = a.map((x, i) => {
+        let X = P + i * dx, Y = H - P - ((x.q - lo) / (hi - lo)) * (H - 2 * P);
+        return [X, Y, x];
+    });
+    let poly = pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    let area = `${P},${H-P} ${poly} ${pts.at(-1)[0]},${H-P}`;
+    return `<svg class="linechart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <line class="gridline" x1="0" y1="${H/2}" x2="${W}" y2="${H/2}"/><polygon class="flowarea" points="${area}"/><polyline class="flowline" points="${poly}"/>
+        ${pts.map(p => `<circle class="flowdot" cx="${p[0]}" cy="${p[1]}" r="3"><title>${fmt(p[2].q)} l/s · ${new Date(p[2].t).toLocaleString('es-AR')}</title></circle>`).join('')}
+    </svg>`;
+}
+
+function trend(a) {
+    let x = a.slice(-3).map(v => v.q);
+    if (x.length < 2) return ['◇', 'Sin historial suficiente', 'normal'];
+    let d = x.at(-1) - x.at(-2);
+    if (x.length >= 3 && x[0] < x[1] && x[1] < x[2]) return ['↗', 'Crecimiento persistente (Riesgo Aluvional)', 'warning'];
+    if (d > 0) return ['↑', 'Caudal en aumento', 'warning'];
+    if (d < 0) return ['↓', 'Caudal en descenso', 'normal'];
+    return ['→', 'Estable', 'normal'];
+}
+
+function exportCSV(code, name) {
+    let a = hist(code);
+    if (!a.length) { alert('No hay datos históricos para exportar.'); return; }
+    let csv = 'Fecha,Caudal (l/s),Altura (cm)\n' + a.map(x => `"${new Date(x.t).toLocaleString('es-AR')}",${x.q},${x.h ?? ''}`).join('\n');
+    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    let url = URL.createObjectURL(blob);
+    let link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `dgi_${code}_${name.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function show(st) {
+    selected = st;
+    store(st);
+    let a = hist(st.codigo), tr = trend(a);
+    document.getElementById('detail').innerHTML = `
+        <div style="margin-top:5px">
+            <b style="font-size:18px">${st.nombre || 'Estación Hidrométrica'}</b>
+            <div class="muted">Código DGI: ${st.codigo || '--'}</div>
+            <div style="margin:6px 0"><span class="pill ${tr[2]}">${tr[0]} ${tr[1]}</span></div>
+            <div class="big">${fmt(st.caudal)} <span style="font-size:14px;color:#8ea4bb">${st.unidadCaudal || 'l/s'}</span></div>
+            <div class="muted">Caudal actual registrado</div>
+            
+            <div class="grid">
+                <div class="box"><div class="lab">Altura Nivel</div><div class="val">${fmt(st.altura)} ${st.unidadAltura || 'cm'}</div></div>
+                <div class="box"><div class="lab">Última Lectura</div><div class="val" style="font-size:11px">${st.fecha ? new Date(st.fecha).toLocaleString('es-AR') : 'S/D'}</div></div>
+                <div class="box"><div class="lab">Registros Locales</div><div class="val">${a.length} / 15 lecturas</div></div>
+                <div class="box"><div class="lab">Ubicación GPS</div><div class="val" style="font-size:11px">${fmt(st.latitud)}, ${fmt(st.longitud)}</div></div>
+            </div>
+
+            <div class="chart"><div class="muted" style="margin-bottom:4px">Evolución temporal del caudal</div>${lineSvg(a)}</div>
+            <button class="btn-action" onclick="exportCSV('${st.codigo}', '${st.nombre || 'estacion'}')">📥 Exportar Historial CSV</button>
+        </div>`;
+}
+
+function render(list) {
+    layer.clearLayers();
+    markers = [];
+    let pts = [];
+    list.forEach(st => {
+        let a = n(st.latitud), b = n(st.longitud);
+        if (a === null || b === null) return;
+        pts.push([a, b]);
+        store(st);
+        let tr = trend(hist(st.codigo));
+        let color = tr[2] === 'warning' ? '#f59e0b' : '#38bdf8';
+        let mk = L.circleMarker([a, b], {
+            radius: 7, color: '#fff', weight: 2, fillColor: color, fillOpacity: .95
+        }).bindTooltip(st.nombre || String(st.codigo), {className: 'dotLabel'})
+          .on('click', () => show(st));
+        
+        if (dgiVisible) {
+            mk.addTo(layer);
+        }
+        markers.push({mk, st});
+    });
+    document.getElementById('count').textContent = `Estaciones: ${pts.length}`;
+}
+
+async function load() {
+    try {
+        let r = await fetch(DGI_WORKER, {cache: 'no-store'});
+        if (!r.ok) throw Error('HTTP ' + r.status);
+        let j = await r.json();
+        if (!j.ok || !Array.isArray(j.estaciones)) throw Error(j.error || 'Respuesta inválida');
+        rows = j.estaciones.filter(x => x && x.habilitada !== false);
+        render(rows);
+        document.getElementById('status').textContent = `Sincronizado: ${rows.length} estaciones activas · Refresco 5 min`;
+        setInterval(load, 300000);
+    } catch (e) {
+        document.getElementById('status').textContent = 'Error DGI: ' + e.message;
+    }
+}
+
+document.getElementById('q').addEventListener('input', e => {
+    let q = e.target.value.toLowerCase().trim();
+    render(!q ? rows : rows.filter(x => String(x.nombre || '').toLowerCase().includes(q) || String(x.codigo || '').toLowerCase().includes(q)));
+});
+
+document.getElementById('toggleDgiBtn').addEventListener('click', function() {
+    dgiVisible = !dgiVisible;
+    if (dgiVisible) {
+        if (!map.hasLayer(layer)) map.addLayer(layer);
+        render(rows);
+        this.classList.remove('off');
+        document.getElementById('dgiIcon').textContent = '👁️';
+        document.getElementById('dgiText').textContent = 'Ocultar Estaciones DGI (Mendoza)';
+    } else {
+        if (map.hasLayer(layer)) map.removeLayer(layer);
+        this.classList.add('off');
+        document.getElementById('dgiIcon').textContent = '❌';
+        document.getElementById('dgiText').textContent = 'Mostrar Estaciones DGI (Mendoza)';
+    }
+});
+
+document.getElementById('toggleIgnBtn').addEventListener('click', function() {
+    ignVisible = !ignVisible;
+    if (ignVisible) {
+        if (!map.hasLayer(ignRiesgoLayer)) map.addLayer(ignRiesgoLayer);
+        this.classList.remove('ok') || this.classList.remove('off');
+        this.classList.remove('off');
+        document.getElementById('ignIcon').textContent = '👁️';
+        document.getElementById('ignText').textContent = 'Ocultar Zonas de Inundación (IGN)';
+    } else {
+        if (map.hasLayer(ignRiesgoLayer)) map.removeLayer(ignRiesgoLayer);
+        this.classList.add('off');
+        document.getElementById('ignIcon').textContent = '❌';
+        document.getElementById('ignText').textContent = 'Mostrar Zonas de Inundación (IGN)';
+    }
+});
+
+load();
+</script>
+</body>
+</html>
