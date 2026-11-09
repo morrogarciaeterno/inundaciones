@@ -56,12 +56,12 @@
         .dark-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
         #detail { flex-grow: 1; margin-top: 10px; overflow-y: auto; }
 
-        .sat-date{width:100%;margin-top:6px;color-scheme:dark}.sat-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.btn-small{background:#0f2744;border:1px solid #2c4d6f;cursor:pointer;font-weight:700;font-size:11px;padding:8px}.legend{margin-top:8px;padding:9px;border:1px solid #27445e;border-radius:9px;background:#0d1e32;font-size:11px;line-height:1.45}.source-note{font-size:10px;color:#8ea4bb;line-height:1.35;margin-top:8px}
         @media(max-width:760px){
             .app{display:block;height:auto}
             .side{position:relative;height:auto}
             .mapwrap,#map{height:50vh}
         }
+    .scanbox{margin-top:8px;padding:10px;border:1px solid #27445e;border-radius:10px;background:#0d1e32}.scanrow{display:flex;justify-content:space-between;gap:8px;margin:4px 0;font-size:11px}.sat-date{width:100%;margin-top:6px;color-scheme:dark}.source-note{font-size:10px;color:#8ea4bb;line-height:1.35;margin-top:8px}
     </style>
 </head>
 <body>
@@ -90,10 +90,10 @@
                 <button id="toggleIgnBtn" class="btn-toggle">
                     <span id="ignIcon">👁️</span> <span id="ignText">Ocultar Zonas de Inundación (IGN)</span>
                 </button>
-                <button id="toggleNasaBtn" class="btn-toggle off"><span id="nasaIcon">🛰️</span> <span id="nasaText">Mostrar NASA VIIRS · 2 días</span></button>
-                <div class="sat-controls"><button id="gpsBtn" class="btn-small">📍 Mi GPS</button><button id="todayBtn" class="btn-small">🕒 Último dato</button></div>
+                <button id="toggleNasaBtn" class="btn-toggle off">🛰️ Mostrar NASA VIIRS · 2 días</button>
                 <input id="floodDate" class="sat-date" type="date" aria-label="Fecha satelital">
-                <div class="legend"><b>Comparación</b><br>🔵 IGN: amenaza cartografiada<br>🔴 NASA VIIRS: compuesto reciente de 2 días<div class="source-note">⬜ Gris: sin datos o clasificación no utilizable. La coincidencia visual aumenta la vigilancia, pero no confirma por sí sola una emergencia.</div></div>
+                <button id="scanGfmBtn" class="btn-action" style="background:#7c3aed">🛰️ Analizar inundación en esta vista</button>
+                <div id="scanStatus" class="scanbox" style="display:none"></div>
             </div>
         </div>
 
@@ -108,13 +108,14 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <script>
 const DGI_WORKER = 'https://dgi-proxy.elexpreso17.workers.dev/';
 const KEY = c => 'territoria_dgi_hist_' + c;
 let rows = [], markers = [], selected = null;
 let dgiVisible = true;
-let ignVisible = true;
-let nasaVisible = false, queryMarker = null, gpsMarker = null;
+let ignVisible = true; let nasaVisible=false;
+const gfmFloodLayer=L.layerGroup().addTo(map);
 
 const map = L.map('map', {preferCanvas: true}).setView([-32.89, -68.84], 10);
 setTimeout(() => { map.invalidateSize(); }, 200);
@@ -133,14 +134,11 @@ const ignRiesgoLayer = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/ign_rie
     attribution: 'IGN - IG-GIRD',
     opacity: 0.8
 }).addTo(map);
-const nasaFloodLayer = L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', {
- layers:'VIIRS_Combined_Flood_2-Day', format:'image/png', transparent:true, version:'1.1.1', opacity:.64,
- attribution:'NASA EOSDIS LANCE / GIBS · VIIRS'
-});
+const nasaFloodLayer=L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi',{layers:'VIIRS_Combined_Flood_2-Day',format:'image/png',transparent:true,version:'1.1.1',opacity:.62,attribution:'NASA EOSDIS LANCE / GIBS · VIIRS'});
 
 const layer = L.layerGroup().addTo(map);
 
-L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Amenaza (IGN)": ignRiesgoLayer, "Inundación NASA VIIRS · 2 días": nasaFloodLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
+L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Amenaza IGN": ignRiesgoLayer, "NASA VIIRS · 2 días": nasaFloodLayer, "GFM analizado": gfmFloodLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
 
 function setRegion(lat, lon, zoom, btn) {
     map.setView([lat, lon], zoom);
@@ -262,65 +260,18 @@ function render(list) {
     document.getElementById('count').textContent = `Estaciones: ${pts.length}`;
 }
 
-const DGI_CACHE_KEY = 'territoria_dgi_ultimo_ok';
-let dgiRefreshTimer = null;
-let dgiLoading = false;
-
-function readDgiCache() {
-    try {
-        const c = JSON.parse(localStorage.getItem(DGI_CACHE_KEY) || 'null');
-        return c && Array.isArray(c.estaciones) ? c : null;
-    } catch { return null; }
-}
-
-async function fetchDgiWithRetry() {
-    let lastError = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 15000);
-            const sep = DGI_WORKER.includes('?') ? '&' : '?';
-            const r = await fetch(DGI_WORKER + sep + '_=' + Date.now(), {
-                cache: 'no-store', signal: controller.signal,
-                headers: { 'Accept': 'application/json' }
-            });
-            clearTimeout(timer);
-            if (!r.ok) throw Error('HTTP ' + r.status);
-            const j = await r.json();
-            if (!j.ok || !Array.isArray(j.estaciones)) throw Error(j.error || 'Respuesta inválida');
-            return j.estaciones.filter(x => x && x.habilitada !== false);
-        } catch (e) {
-            lastError = e;
-            if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1800));
-        }
-    }
-    throw lastError || Error('No fue posible consultar DGI');
-}
-
 async function load() {
-    if (dgiLoading) return;
-    dgiLoading = true;
-    const status = document.getElementById('status');
-    status.textContent = 'Consultando DGI…';
     try {
-        rows = await fetchDgiWithRetry();
-        localStorage.setItem(DGI_CACHE_KEY, JSON.stringify({ts: Date.now(), estaciones: rows}));
+        let r = await fetch(DGI_WORKER, {cache: 'no-store'});
+        if (!r.ok) throw Error('HTTP ' + r.status);
+        let j = await r.json();
+        if (!j.ok || !Array.isArray(j.estaciones)) throw Error(j.error || 'Respuesta inválida');
+        rows = j.estaciones.filter(x => x && x.habilitada !== false);
         render(rows);
-        status.textContent = `Sincronizado: ${rows.length} estaciones activas · Refresco 5 min`;
+        document.getElementById('status').textContent = `Sincronizado: ${rows.length} estaciones activas · Refresco 5 min`;
+        setInterval(load, 300000);
     } catch (e) {
-        const cached = readDgiCache();
-        if (cached && cached.estaciones.length) {
-            rows = cached.estaciones;
-            render(rows);
-            const when = cached.ts ? new Date(cached.ts).toLocaleString('es-AR') : 'anterior';
-            status.textContent = `DGI sin conexión · mostrando ${rows.length} estaciones guardadas (${when})`;
-        } else {
-            status.innerHTML = `DGI sin conexión: ${safe(e.name === 'AbortError' ? 'tiempo de espera agotado' : e.message)} <button id="retryDgi" style="margin-left:8px;padding:5px 8px">Reintentar</button>`;
-            document.getElementById('retryDgi')?.addEventListener('click', load);
-        }
-    } finally {
-        dgiLoading = false;
-        if (!dgiRefreshTimer) dgiRefreshTimer = setInterval(load, 300000);
+        document.getElementById('status').textContent = 'Error DGI: ' + e.message;
     }
 }
 
@@ -361,24 +312,16 @@ document.getElementById('toggleIgnBtn').addEventListener('click', function() {
 });
 
 
-
-let nasaTileErrors = 0;
-nasaFloodLayer.on('tileerror', () => {
-    nasaTileErrors++;
-    if (nasaTileErrors === 1) document.getElementById('status').title = 'Algunas teselas NASA no están disponibles para la fecha seleccionada.';
-});
-const floodDateInput=document.getElementById('floodDate');
-const ymd=d=>d.toISOString().slice(0,10); function latestDay(){const d=new Date();d.setDate(d.getDate()-1);return ymd(d)}
-floodDateInput.value=latestDay(); nasaFloodLayer.setParams({time:floodDateInput.value},false);
+const floodDateInput=document.getElementById('floodDate'); const d=new Date();d.setDate(d.getDate()-1);floodDateInput.value=d.toISOString().slice(0,10);nasaFloodLayer.setParams({time:floodDateInput.value},false);
+document.getElementById('toggleNasaBtn').onclick=function(){nasaVisible=!nasaVisible;if(nasaVisible){nasaFloodLayer.setParams({time:floodDateInput.value},false).addTo(map);this.classList.remove('off');this.textContent='👁️ Ocultar NASA VIIRS · 2 días'}else{map.removeLayer(nasaFloodLayer);this.classList.add('off');this.textContent='🛰️ Mostrar NASA VIIRS · 2 días'}};
+floodDateInput.onchange=()=>nasaFloodLayer.setParams({time:floodDateInput.value},true);
 const safe=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
-async function zoneName(lat,lon){try{const r=await fetch(`https://apis.datos.gob.ar/georef/api/ubicacion?lat=${lat}&lon=${lon}`);const j=await r.json(),x=j.ubicacion||j;const a=x.localidad?.nombre||x.municipio?.nombre||x.departamento?.nombre||x.provincia?.nombre||'Zona consultada';return [a,x.departamento?.nombre,x.provincia?.nombre].filter((v,i,A)=>v&&A.indexOf(v)===i).join(' · ')}catch{return 'Zona consultada'}}
-async function rain(lat,lon){try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=precipitation&hourly=precipitation_probability,precipitation&forecast_days=2&timezone=auto`);const j=await r.json(),now=Date.now();let mm=0,p=0,n=0;(j.hourly?.time||[]).forEach((t,i)=>{const z=Date.parse(t);if(z>=now&&z<=now+86400000){mm+=Number(j.hourly.precipitation[i]||0);p=Math.max(p,Number(j.hourly.precipitation_probability[i]||0));n++}});return {ok:n>0,now:Number(j.current?.precipitation||0),mm,p}}catch{return{ok:false}}}
-function near(lat,lon){const rad=Math.PI/180,R=6371,dist=(a,b,c,d)=>{const x=(c-a)*rad,y=(d-b)*rad,q=Math.sin(x/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(y/2)**2;return 2*R*Math.atan2(Math.sqrt(q),Math.sqrt(1-q))};return rows.map(st=>{const a=n(st.latitud),b=n(st.longitud);return a===null||b===null?null:{st,km:dist(lat,lon,a,b)}}).filter(Boolean).filter(x=>x.km<=80).sort((a,b)=>a.km-b.km).slice(0,5)}
-async function analyse(e){const {lat,lng}=e;document.getElementById('detail').innerHTML='<div class="status">Analizando zona…</div>';const [z,w]=await Promise.all([zoneName(lat,lng),rain(lat,lng)]),ns=near(lat,lng);if(queryMarker)map.removeLayer(queryMarker);queryMarker=L.circleMarker(e,{radius:8,color:'#fff',weight:2,fillColor:'#e11d48',fillOpacity:1}).addTo(map);const dgi=ns.length?ns.map(x=>`<div class="box" style="margin-top:6px"><div class="lab">DGI · ${x.km.toFixed(1)} km</div><div class="val">${safe(x.st.nombre||x.st.codigo)}</div><div class="muted">Caudal ${fmt(x.st.caudal)} ${safe(x.st.unidadCaudal||'l/s')} · Altura ${fmt(x.st.altura)} ${safe(x.st.unidadAltura||'cm')}</div></div>`).join(''):'<div class="muted">Sin estaciones DGI dentro de 80 km.</div>';document.getElementById('detail').innerHTML=`<div class="lab">Zona territorial</div><b style="font-size:20px">📍 ${safe(z)}</b><div class="status"><b>COMPARADOR TERRITORIA</b><br>IGN ${map.hasLayer(ignRiesgoLayer)?'VISIBLE':'OCULTO'} · NASA VIIRS ${map.hasLayer(nasaFloodLayer)?'VISIBLE '+safe(floodDateInput.value):'OCULTO'}</div><div class="grid"><div class="box"><div class="lab">Lluvia actual</div><div class="val">${w.ok?w.now.toFixed(1)+' mm':'S/D'}</div></div><div class="box"><div class="lab">Próximas 24 h</div><div class="val">${w.ok?w.mm.toFixed(1)+' mm · '+w.p+'%':'S/D'}</div></div></div><div class="lab">Estaciones próximas</div>${dgi}<div class="source-note">IGN muestra amenaza cartografiada. NASA VIIRS muestra un compuesto del día seleccionado y el día anterior. Compará visualmente ambas capas; esto no confirma una emergencia ni reemplaza fuentes oficiales.<br>Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`}
-map.on('click',e=>analyse(e.latlng));
-document.getElementById('toggleNasaBtn').onclick=function(){nasaVisible=!nasaVisible;if(nasaVisible){nasaFloodLayer.setParams({time:floodDateInput.value},false).addTo(map);this.classList.remove('off');nasaText.textContent='Ocultar NASA VIIRS · 2 días';nasaIcon.textContent='👁️'}else{map.removeLayer(nasaFloodLayer);this.classList.add('off');nasaText.textContent='Mostrar NASA VIIRS · 2 días';nasaIcon.textContent='🛰️'}};
-floodDateInput.onchange=()=>nasaFloodLayer.setParams({time:floodDateInput.value},true);document.getElementById('todayBtn').onclick=()=>{floodDateInput.value=latestDay();nasaFloodLayer.setParams({time:floodDateInput.value},true)};
-document.getElementById('gpsBtn').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const e=L.latLng(p.coords.latitude,p.coords.longitude);map.setView(e,13);if(gpsMarker)map.removeLayer(gpsMarker);gpsMarker=L.circleMarker(e,{radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map);analyse(e)},x=>alert('GPS: '+x.message),{enableHighAccuracy:true,timeout:12000}):alert('GPS no disponible');
+async function zoneName(lat,lon){try{const r=await fetch(`https://apis.datos.gob.ar/georef/api/ubicacion?lat=${lat}&lon=${lon}`);const j=await r.json(),x=j.ubicacion||j;return [x.localidad?.nombre||x.municipio?.nombre||x.departamento?.nombre,x.departamento?.nombre,x.provincia?.nombre].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' · ')}catch{return 'Zona analizada'}}
+const scanStatus=document.getElementById('scanStatus');function msg(x){scanStatus.style.display='block';scanStatus.innerHTML=x}function viewBBox(){const b=map.getBounds();return[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()]}
+function getAsset(i){const a=i.assets||{};for(const k of ['ensemble_flood_extent','observed_flood_extent','flood_extent'])if(a[k]?.href)return a[k].href;const e=Object.entries(a).find(([k,v])=>v?.href&&/flood.*extent|ensemble.*flood/i.test(k+' '+(v.title||'')));return e?.[1]?.href}
+async function scanGfm(){const btn=document.getElementById('scanGfmBtn');btn.disabled=true;btn.textContent='⏳ Analizando Sentinel-1…';gfmFloodLayer.clearLayers();msg('<b>Copernicus GFM</b><div class="muted">Buscando escenas y leyendo píxeles de inundación…</div>');try{if(typeof GeoTIFF==='undefined')throw Error('GeoTIFF no disponible');const end=new Date(floodDateInput.value+'T23:59:59Z'),start=new Date(end);start.setDate(start.getDate()-6);const rr=await fetch('https://stac.eodc.eu/api/v1/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({collections:['GFM'],bbox:viewBBox(),datetime:start.toISOString()+'/'+end.toISOString(),limit:20})});if(!rr.ok)throw Error('STAC HTTP '+rr.status);const jj=await rr.json(),items=(jj.features||[]).filter(getAsset).slice(0,8);if(!items.length){msg('<b>Sin escenas GFM</b><div class="muted">No hay pasadas procesadas para esta vista y período.</div>');return}let pts=[],done=0,positive=0,last='';for(const item of items){try{const t=await GeoTIFF.fromUrl(getAsset(item)),im=await t.getImage(),ib=im.getBoundingBox(),mb=viewBBox(),bb=[Math.max(ib[0],mb[0]),Math.max(ib[1],mb[1]),Math.min(ib[2],mb[2]),Math.min(ib[3],mb[3])];if(bb[0]>=bb[2]||bb[1]>=bb[3])continue;const W=120,H=120,r=await im.readRasters({bbox:bb,width:W,height:H,interleave:true,resampleMethod:'nearest'});let hit=0;for(let y=0;y<H;y+=2)for(let x=0;x<W;x+=2)if(Number(r[y*W+x])===1){hit++;if(pts.length<1200){const lon=bb[0]+(x+.5)/W*(bb[2]-bb[0]),lat=bb[3]-(y+.5)/H*(bb[3]-bb[1]);pts.push([lat,lon]);L.circleMarker([lat,lon],{radius:2,stroke:false,fillColor:'#ff2438',fillOpacity:.85}).addTo(gfmFloodLayer)}}if(hit)positive++;last=item.properties?.datetime||last;done++;}catch(e){done++}}
+const z=await zoneName((pts[0]||map.getCenter()).lat??pts[0]?.[0],(pts[0]||map.getCenter()).lng??pts[0]?.[1]);msg(`<b>Resultado GFM · Sentinel-1</b><div class="scanrow"><span>Escenas</span><b>${done}</b></div><div class="scanrow"><span>Con inundación</span><b>${positive}</b></div><div class="scanrow"><span>Muestras rojas</span><b>${pts.length}</b></div><div class="scanrow"><span>Zona aproximada</span><b>${safe(z)}</b></div><div class="scanrow"><span>Adquisición</span><b>${last?new Date(last).toLocaleString('es-AR'):'S/D'}</b></div><div class="source-note">Rojo: píxeles clasificados como inundación por Observed Flood Extent. Muestreo de pantalla, no confirmación oficial.</div>`);if(pts.length)map.fitBounds(L.latLngBounds(pts),{padding:[25,25],maxZoom:10});}catch(e){msg(`<b>Análisis no disponible</b><div class="muted">${safe(e.message)}</div>`)}finally{btn.disabled=false;btn.textContent='🛰️ Analizar inundación en esta vista'}}
+document.getElementById('scanGfmBtn').onclick=scanGfm;
 
 load();
 </script>
