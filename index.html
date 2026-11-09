@@ -23,10 +23,11 @@
         .lab{font-size:9px;color:#8198ae;text-transform:uppercase;letter-spacing:.5px}
         .val{margin-top:4px;font-size:13px;font-weight:800}
         
-        /* Selector por Puntos Cardinales de Argentina */
+        /* Selector de Regiones Ampliado con Noroeste */
         .region-select{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0}
         .btn-reg{background:#0f2744;border:1px solid #2c4d6f;padding:8px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;color:#93c5fd;text-align:center}
         .btn-reg:hover, .btn-reg.active{background:#0369a1;color:#fff;border-color:#38bdf8}
+        .btn-reg.full{grid-column: span 2;}
 
         .controls-group{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px}
         .btn-toggle{background:#047857;border:none;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border-radius:8px;color:#eaf3ff;font-size:12px;transition:background .2s}
@@ -69,12 +70,13 @@
             <h1><span>💧</span> NOVA TERRITORIA</h1>
             <div class="muted">Plataforma Nacional de Contingencias Hídricas</div>
             
-            <!-- Selector por Puntos Cardinales de Argentina -->
+            <!-- Selector Ampliado con Noroeste (NOA) -->
             <div class="region-select">
-                <button class="btn-reg active" onclick="setRegion(-27.45, -58.98, 10, this)">⬆️ Norte (Litoral)</button>
-                <button class="btn-reg" onclick="setRegion(-41.13, -71.30, 10, this)">⬇️ Sur (Patagonia)</button>
-                <button class="btn-reg" onclick="setRegion(-36.50, -57.70, 10, this)">➡️ Este (Costa/Bs.As.)</button>
-                <button class="btn-reg" onclick="setRegion(-32.89, -68.84, 10, this)">⬅️ Oeste (Cuyo)</button>
+                <button class="btn-reg active" onclick="setRegion(-32.89, -68.84, 10, this)">⛰️ Oeste (Cuyo)</button>
+                <button class="btn-reg" onclick="setRegion(-24.78, -65.41, 10, this)">🌵 Noroeste (NOA)</button>
+                <button class="btn-reg" onclick="setRegion(-27.45, -58.98, 10, this)">🌊 Norte (Litoral)</button>
+                <button class="btn-reg" onclick="setRegion(-36.50, -57.70, 10, this)">🏖️ Este (Bs.As.)</button>
+                <button class="btn-reg full" onclick="setRegion(-41.13, -71.30, 9, this)">🏔️ Sur (Patagonia)</button>
             </div>
 
             <input class="search" id="q" placeholder="Buscar estación o código DGI...">
@@ -91,7 +93,7 @@
         </div>
 
         <div id="detail">
-            <div class="muted" style="text-align:center;padding:30px 0;">Selecciona un punto cardinal o una estación en el mapa para auditar el riesgo hídrico nacional.</div>
+            <div class="muted" style="text-align:center;padding:30px 0;">Selecciona una región o estación en el mapa para auditar el riesgo hídrico nacional.</div>
         </div>
     </aside>
     <main class="mapwrap">
@@ -216,7 +218,7 @@ function show(st) {
             
             <div class="grid">
                 <div class="box"><div class="lab">Altura Nivel</div><div class="val">${fmt(st.altura)} ${st.unidadAltura || 'cm'}</div></div>
-                <div class="box"><div class="lab">Última Lectura</div><div class="val" style="font-size:11px">${st.fecha ? new Date(x.t = st.fecha).toLocaleString('es-AR') : 'S/D'}</div></div>
+                <div class="box"><div class="lab">Última Lectura</div><div class="val" style="font-size:11px">${st.fecha ? new Date(st.fecha).toLocaleString('es-AR') : 'S/D'}</div></div>
                 <div class="box"><div class="lab">Registros Locales</div><div class="val">${a.length} / 15 lecturas</div></div>
                 <div class="box"><div class="lab">Ubicación GPS</div><div class="val" style="font-size:11px">${fmt(st.latitud)}, ${fmt(st.longitud)}</div></div>
             </div>
