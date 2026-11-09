@@ -39,7 +39,6 @@
         .btn-action{width:100%;margin-top:10px;background:#0369a1;border:none;cursor:pointer;font-weight:700;transition:background .2s}
         .btn-action:hover{background:#0284c7}
         
-        /* 1. TRUCO CSS PARA MAPA OSCURO GRATUITO Y SIN API KEY */
         .dark-tiles {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
@@ -76,30 +75,26 @@ let rows = [], markers = [], selected = null;
 
 const map = L.map('map', {preferCanvas: true}).setView([-32.89, -68.84], 8);
 
-// 2. MAPA BASE 100% LIBRE (OpenStreetMap) con clase 'dark-tiles' para invertirlo visualmente.
-// Nunca más te va a pedir API KEY.
 const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors',
     className: 'dark-tiles' 
 }).addTo(map);
 
-// Capa WMS de Riesgo Hídrico / Inundación (IGN Argentina - IG-GIRD)
+// Capa WMS de Inundaciones activa POR DEFECTO (.addTo(map))
 const ignRiesgoLayer = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/ign_riesgo/ows?', {
     layers: 'amenaza_inundacion', 
     format: 'image/png',
     transparent: true,
     version: '1.3.0',
-    attribution: 'IGN Argentina - Geoportal de Riesgo (IG-GIRD)'
-});
+    attribution: 'IGN - IG-GIRD',
+    opacity: 0.7
+}).addTo(map);
 
 const layer = L.layerGroup().addTo(map);
 
-// Control de capas
 L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Riesgo Hídrico (IGN)": ignRiesgoLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
 
-// 3. PARSEO SEGURO DE COORDENADAS: reemplaza comas por puntos antes de convertir a número
-// (Para evitar que las estaciones terminen en el océano)
 const n = v => { 
     if (v === null || v === undefined) return null;
     let s = String(v).replace(',', '.');
