@@ -56,6 +56,7 @@
         .dark-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
         #detail { flex-grow: 1; margin-top: 10px; overflow-y: auto; }
 
+        .sat-date{width:100%;margin-top:6px;color-scheme:dark}.sat-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.btn-small{background:#0f2744;border:1px solid #2c4d6f;cursor:pointer;font-weight:700;font-size:11px;padding:8px}.legend{margin-top:8px;padding:9px;border:1px solid #27445e;border-radius:9px;background:#0d1e32;font-size:11px;line-height:1.45}.source-note{font-size:10px;color:#8ea4bb;line-height:1.35;margin-top:8px}
         @media(max-width:760px){
             .app{display:block;height:auto}
             .side{position:relative;height:auto}
@@ -89,6 +90,10 @@
                 <button id="toggleIgnBtn" class="btn-toggle">
                     <span id="ignIcon">👁️</span> <span id="ignText">Ocultar Zonas de Inundación (IGN)</span>
                 </button>
+                <button id="toggleNasaBtn" class="btn-toggle off"><span id="nasaIcon">🛰️</span> <span id="nasaText">Mostrar inundación reciente NASA VIIRS</span></button>
+                <div class="sat-controls"><button id="gpsBtn" class="btn-small">📍 Mi GPS</button><button id="todayBtn" class="btn-small">🕒 Último día</button></div>
+                <input id="floodDate" class="sat-date" type="date" aria-label="Fecha satelital">
+                <div class="legend"><b>Comparación</b><br>🔵 IGN: amenaza cartografiada<br>🔴 NASA VIIRS: detección satelital reciente<div class="source-note">La coincidencia visual aumenta la vigilancia, pero no confirma por sí sola una emergencia.</div></div>
             </div>
         </div>
 
@@ -109,6 +114,7 @@ const KEY = c => 'territoria_dgi_hist_' + c;
 let rows = [], markers = [], selected = null;
 let dgiVisible = true;
 let ignVisible = true;
+let nasaVisible = false, queryMarker = null, gpsMarker = null;
 
 const map = L.map('map', {preferCanvas: true}).setView([-32.89, -68.84], 10);
 setTimeout(() => { map.invalidateSize(); }, 200);
@@ -127,10 +133,14 @@ const ignRiesgoLayer = L.tileLayer.wms('https://wms.ign.gob.ar/geoserver/ign_rie
     attribution: 'IGN - IG-GIRD',
     opacity: 0.8
 }).addTo(map);
+const nasaFloodLayer = L.tileLayer.wms('https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', {
+ layers:'VIIRS_Combined_Flood_1-Day', format:'image/png', transparent:true, version:'1.1.1', opacity:.78,
+ attribution:'NASA EOSDIS LANCE / GIBS · VIIRS'
+});
 
 const layer = L.layerGroup().addTo(map);
 
-L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Riesgo Hídrico (IGN)": ignRiesgoLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
+L.control.layers({ "Mapa Base Oscuro": baseLayer }, { "Amenaza (IGN)": ignRiesgoLayer, "Inundación reciente NASA VIIRS": nasaFloodLayer, "Estaciones DGI": layer }, { position: 'topleft' }).addTo(map);
 
 function setRegion(lat, lon, zoom, btn) {
     map.setView([lat, lon], zoom);
@@ -304,145 +314,18 @@ document.getElementById('toggleIgnBtn').addEventListener('click', function() {
 });
 
 
-// --- TERRITORIA: identificación humana de zonas de inundación ---
-// Convierte el punto pulsado a nombres administrativos mediante Georef.
-// Además consulta la capa WMS visible mediante GetFeatureInfo.
-const GEOREF_URL = 'https://apis.datos.gob.ar/georef/api/ubicacion';
-const IGN_WMS_URL = 'https://wms.ign.gob.ar/geoserver/ign_riesgo/ows?';
-let floodQueryMarker = null;
-
-function escHtml(v) {
-    return String(v ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
-}
-
-async function nombreZona(lat, lon) {
-    try {
-        const u = `${GEOREF_URL}?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-        const r = await fetch(u, {cache:'no-store'});
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const j = await r.json();
-        const x = j.ubicacion || (Array.isArray(j.ubicaciones) ? j.ubicaciones[0] : null) || j;
-        const localidad = x.localidad?.nombre || x.localidad_censal?.nombre || x.asentamiento?.nombre || '';
-        const municipio = x.municipio?.nombre || '';
-        const depto = x.departamento?.nombre || '';
-        const provincia = x.provincia?.nombre || '';
-        const principal = localidad || municipio || depto || provincia || 'Zona sin nombre disponible';
-        const partes = [principal, depto && depto !== principal ? depto : '', provincia && provincia !== principal ? provincia : ''].filter(Boolean);
-        return {principal, texto: partes.join(' · ')};
-    } catch (e) {
-        return {principal:'Zona consultada', texto:'Nombre territorial no disponible'};
-    }
-}
-
-async function infoAmenazaIGN(latlng) {
-    // Consulta vectorial WFS alrededor del punto. Es más fiable que GetFeatureInfo
-    // para esta capa, porque no depende del píxel, zoom ni tamaño del mapa.
-    const {lat, lng} = latlng;
-    const tolerancias = [0.00015, 0.0005, 0.0015]; // aprox. 15 m, 50 m y 150 m
-
-    for (const d of tolerancias) {
-        try {
-            const bbox = [lng-d, lat-d, lng+d, lat+d, 'EPSG:4326'].join(',');
-            const params = new URLSearchParams({
-                service: 'WFS',
-                version: '1.1.0',
-                request: 'GetFeature',
-                typeName: 'ign_riesgo:amenaza_inundacion',
-                outputFormat: 'application/json',
-                srsName: 'EPSG:4326',
-                bbox,
-                maxFeatures: '5'
-            });
-            const r = await fetch(IGN_WMS_URL + params.toString(), {cache:'no-store'});
-            if (!r.ok) continue;
-            const j = await r.json();
-            if (Array.isArray(j.features) && j.features.length) return j.features;
-        } catch (_) {}
-    }
-
-    // Respaldo WMS: si WFS no responde, consulta el píxel visible.
-    try {
-        const size = map.getSize();
-        const bounds = map.getBounds();
-        const nw = map.options.crs.project(bounds.getNorthWest());
-        const se = map.options.crs.project(bounds.getSouthEast());
-        const pt = map.latLngToContainerPoint(latlng);
-        const params = new URLSearchParams({
-            service:'WMS', request:'GetFeatureInfo', version:'1.1.1',
-            layers:'ign_riesgo:amenaza_inundacion',
-            query_layers:'ign_riesgo:amenaza_inundacion',
-            styles:'',
-            bbox:`${nw.x},${se.y},${se.x},${nw.y}`,
-            width:String(Math.round(size.x)),
-            height:String(Math.round(size.y)),
-            srs:'EPSG:3857',
-            x:String(Math.round(pt.x)),
-            y:String(Math.round(pt.y)),
-            info_format:'application/json',
-            feature_count:'5'
-        });
-        const r = await fetch(IGN_WMS_URL + params.toString(), {cache:'no-store'});
-        if (!r.ok) return [];
-        const j = await r.json();
-        return Array.isArray(j.features) ? j.features : [];
-    } catch (_) {
-        return [];
-    }
-}
-function estacionesCercanas(lat, lon, maxKm=50, limit=3) {
-    const rad = Math.PI / 180;
-    const dist = (a,b,c,d) => {
-        const dLat=(c-a)*rad, dLon=(d-b)*rad;
-        const q=Math.sin(dLat/2)**2 + Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(dLon/2)**2;
-        return 6371 * 2 * Math.atan2(Math.sqrt(q), Math.sqrt(1-q));
-    };
-    return rows.map(st => {
-        const a=n(st.latitud), b=n(st.longitud);
-        return (a===null || b===null) ? null : {st, km:dist(lat,lon,a,b)};
-    }).filter(Boolean).filter(x => x.km <= maxKm).sort((a,b)=>a.km-b.km).slice(0,limit);
-}
-
-async function consultarZonaTerritoria(latlng) {
-    const {lat,lng} = latlng;
-    document.getElementById('detail').innerHTML = '<div class="status">💧 Identificando zona territorial y consultando IGN…</div>';
-    const [zona, features] = await Promise.all([nombreZona(lat,lng), infoAmenazaIGN(latlng)]);
-    const cercanas = estacionesCercanas(lat,lng);
-    const enAmenaza = features.length > 0;
-
-    if (floodQueryMarker) map.removeLayer(floodQueryMarker);
-    floodQueryMarker = L.circleMarker(latlng, {
-        radius:8, color:'#fff', weight:2,
-        fillColor: enAmenaza ? '#f59e0b' : '#22c55e', fillOpacity:.95
-    }).addTo(map);
-
-    const estacionesHtml = cercanas.length ? cercanas.map(({st,km}) => {
-        const tr = trend(hist(st.codigo));
-        return `<div class="box" style="margin-top:6px">
-            <div class="lab">Estación DGI · ${km.toFixed(1)} km</div>
-            <div class="val">${escHtml(st.nombre || st.codigo)}</div>
-            <div class="muted">Caudal: ${fmt(st.caudal)} ${escHtml(st.unidadCaudal || 'l/s')} · ${escHtml(tr[0]+' '+tr[1])}</div>
-        </div>`;
-    }).join('') : '<div class="muted" style="margin-top:10px">Sin estaciones DGI dentro de 50 km.</div>';
-
-    document.getElementById('detail').innerHTML = `
-      <div style="margin-top:5px">
-        <div class="lab">Zona territorial</div>
-        <b style="font-size:20px">📍 ${escHtml(zona.principal)}</b>
-        <div class="muted" style="margin-top:3px">${escHtml(zona.texto)}</div>
-        <div style="margin:10px 0">
-          <span class="pill ${enAmenaza ? 'warning' : 'normal'}">${enAmenaza ? '💧 ZONA CARTOGRAFIADA CON AMENAZA DE INUNDACIÓN' : '✓ SIN ENTIDAD IDENTIFICADA EN EL PUNTO'}</span>
-        </div>
-        <div class="status" style="margin-top:6px">
-          <b>IGN · IG-GIRD</b><br>
-          ${enAmenaza ? 'El punto consultado coincide con la cartografía de amenaza_inundacion del IGN.' : 'La consulta puntual no devolvió una entidad de amenaza_inundacion.'}
-        </div>
-        <div class="lab" style="margin-top:14px">Estaciones DGI próximas</div>
-        ${estacionesHtml}
-        <div class="muted" style="margin-top:12px">Coordenadas técnicas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
-      </div>`;
-}
-
-map.on('click', e => consultarZonaTerritoria(e.latlng));
+const floodDateInput=document.getElementById('floodDate');
+const ymd=d=>d.toISOString().slice(0,10); function latestDay(){const d=new Date();d.setDate(d.getDate()-1);return ymd(d)}
+floodDateInput.value=latestDay(); nasaFloodLayer.setParams({time:floodDateInput.value},false);
+const safe=v=>String(v??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]));
+async function zoneName(lat,lon){try{const r=await fetch(`https://apis.datos.gob.ar/georef/api/ubicacion?lat=${lat}&lon=${lon}`);const j=await r.json(),x=j.ubicacion||j;const a=x.localidad?.nombre||x.municipio?.nombre||x.departamento?.nombre||x.provincia?.nombre||'Zona consultada';return [a,x.departamento?.nombre,x.provincia?.nombre].filter((v,i,A)=>v&&A.indexOf(v)===i).join(' · ')}catch{return 'Zona consultada'}}
+async function rain(lat,lon){try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=precipitation&hourly=precipitation_probability,precipitation&forecast_days=2&timezone=auto`);const j=await r.json(),now=Date.now();let mm=0,p=0,n=0;(j.hourly?.time||[]).forEach((t,i)=>{const z=Date.parse(t);if(z>=now&&z<=now+86400000){mm+=Number(j.hourly.precipitation[i]||0);p=Math.max(p,Number(j.hourly.precipitation_probability[i]||0));n++}});return {ok:n>0,now:Number(j.current?.precipitation||0),mm,p}}catch{return{ok:false}}}
+function near(lat,lon){const rad=Math.PI/180,R=6371,dist=(a,b,c,d)=>{const x=(c-a)*rad,y=(d-b)*rad,q=Math.sin(x/2)**2+Math.cos(a*rad)*Math.cos(c*rad)*Math.sin(y/2)**2;return 2*R*Math.atan2(Math.sqrt(q),Math.sqrt(1-q))};return rows.map(st=>{const a=n(st.latitud),b=n(st.longitud);return a===null||b===null?null:{st,km:dist(lat,lon,a,b)}}).filter(Boolean).filter(x=>x.km<=80).sort((a,b)=>a.km-b.km).slice(0,5)}
+async function analyse(e){const {lat,lng}=e;document.getElementById('detail').innerHTML='<div class="status">Analizando zona…</div>';const [z,w]=await Promise.all([zoneName(lat,lng),rain(lat,lng)]),ns=near(lat,lng);if(queryMarker)map.removeLayer(queryMarker);queryMarker=L.circleMarker(e,{radius:8,color:'#fff',weight:2,fillColor:'#e11d48',fillOpacity:1}).addTo(map);const dgi=ns.length?ns.map(x=>`<div class="box" style="margin-top:6px"><div class="lab">DGI · ${x.km.toFixed(1)} km</div><div class="val">${safe(x.st.nombre||x.st.codigo)}</div><div class="muted">Caudal ${fmt(x.st.caudal)} ${safe(x.st.unidadCaudal||'l/s')} · Altura ${fmt(x.st.altura)} ${safe(x.st.unidadAltura||'cm')}</div></div>`).join(''):'<div class="muted">Sin estaciones DGI dentro de 80 km.</div>';document.getElementById('detail').innerHTML=`<div class="lab">Zona territorial</div><b style="font-size:20px">📍 ${safe(z)}</b><div class="status"><b>COMPARADOR TERRITORIA</b><br>IGN ${map.hasLayer(ignRiesgoLayer)?'VISIBLE':'OCULTO'} · NASA VIIRS ${map.hasLayer(nasaFloodLayer)?'VISIBLE '+safe(floodDateInput.value):'OCULTO'}</div><div class="grid"><div class="box"><div class="lab">Lluvia actual</div><div class="val">${w.ok?w.now.toFixed(1)+' mm':'S/D'}</div></div><div class="box"><div class="lab">Próximas 24 h</div><div class="val">${w.ok?w.mm.toFixed(1)+' mm · '+w.p+'%':'S/D'}</div></div></div><div class="lab">Estaciones próximas</div>${dgi}<div class="source-note">IGN muestra amenaza cartografiada. NASA VIIRS muestra detección satelital del día seleccionado. Compará visualmente ambas capas; esto no confirma una emergencia ni reemplaza fuentes oficiales.<br>Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`}
+map.on('click',e=>analyse(e.latlng));
+document.getElementById('toggleNasaBtn').onclick=function(){nasaVisible=!nasaVisible;if(nasaVisible){nasaFloodLayer.setParams({time:floodDateInput.value},false).addTo(map);this.classList.remove('off');nasaText.textContent='Ocultar inundación reciente NASA VIIRS';nasaIcon.textContent='👁️'}else{map.removeLayer(nasaFloodLayer);this.classList.add('off');nasaText.textContent='Mostrar inundación reciente NASA VIIRS';nasaIcon.textContent='🛰️'}};
+floodDateInput.onchange=()=>nasaFloodLayer.setParams({time:floodDateInput.value},true);document.getElementById('todayBtn').onclick=()=>{floodDateInput.value=latestDay();nasaFloodLayer.setParams({time:floodDateInput.value},true)};
+document.getElementById('gpsBtn').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const e=L.latLng(p.coords.latitude,p.coords.longitude);map.setView(e,13);if(gpsMarker)map.removeLayer(gpsMarker);gpsMarker=L.circleMarker(e,{radius:9,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(map);analyse(e)},x=>alert('GPS: '+x.message),{enableHighAccuracy:true,timeout:12000}):alert('GPS no disponible');
 
 load();
 </script>
