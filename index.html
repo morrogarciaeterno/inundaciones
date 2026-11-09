@@ -335,29 +335,60 @@ async function nombreZona(lat, lon) {
 }
 
 async function infoAmenazaIGN(latlng) {
+    // Consulta vectorial WFS alrededor del punto. Es más fiable que GetFeatureInfo
+    // para esta capa, porque no depende del píxel, zoom ni tamaño del mapa.
+    const {lat, lng} = latlng;
+    const tolerancias = [0.00015, 0.0005, 0.0015]; // aprox. 15 m, 50 m y 150 m
+
+    for (const d of tolerancias) {
+        try {
+            const bbox = [lng-d, lat-d, lng+d, lat+d, 'EPSG:4326'].join(',');
+            const params = new URLSearchParams({
+                service: 'WFS',
+                version: '1.1.0',
+                request: 'GetFeature',
+                typeName: 'ign_riesgo:amenaza_inundacion',
+                outputFormat: 'application/json',
+                srsName: 'EPSG:4326',
+                bbox,
+                maxFeatures: '5'
+            });
+            const r = await fetch(IGN_WMS_URL + params.toString(), {cache:'no-store'});
+            if (!r.ok) continue;
+            const j = await r.json();
+            if (Array.isArray(j.features) && j.features.length) return j.features;
+        } catch (_) {}
+    }
+
+    // Respaldo WMS: si WFS no responde, consulta el píxel visible.
     try {
         const size = map.getSize();
         const bounds = map.getBounds();
-        const sw = map.options.crs.project(bounds.getSouthWest());
-        const ne = map.options.crs.project(bounds.getNorthEast());
+        const nw = map.options.crs.project(bounds.getNorthWest());
+        const se = map.options.crs.project(bounds.getSouthEast());
         const pt = map.latLngToContainerPoint(latlng);
         const params = new URLSearchParams({
             service:'WMS', request:'GetFeatureInfo', version:'1.1.1',
-            layers:'amenaza_inundacion', query_layers:'amenaza_inundacion',
-            styles:'', bbox:`${sw.x},${sw.y},${ne.x},${ne.y}`,
-            width:String(size.x), height:String(size.y), srs:'EPSG:3857',
-            x:String(Math.round(pt.x)), y:String(Math.round(pt.y)),
-            info_format:'application/json', feature_count:'5'
+            layers:'ign_riesgo:amenaza_inundacion',
+            query_layers:'ign_riesgo:amenaza_inundacion',
+            styles:'',
+            bbox:`${nw.x},${se.y},${se.x},${nw.y}`,
+            width:String(Math.round(size.x)),
+            height:String(Math.round(size.y)),
+            srs:'EPSG:3857',
+            x:String(Math.round(pt.x)),
+            y:String(Math.round(pt.y)),
+            info_format:'application/json',
+            feature_count:'5'
         });
         const r = await fetch(IGN_WMS_URL + params.toString(), {cache:'no-store'});
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (!r.ok) return [];
         const j = await r.json();
         return Array.isArray(j.features) ? j.features : [];
-    } catch (e) {
+    } catch (_) {
         return [];
     }
 }
-
 function estacionesCercanas(lat, lon, maxKm=50, limit=3) {
     const rad = Math.PI / 180;
     const dist = (a,b,c,d) => {
@@ -399,11 +430,11 @@ async function consultarZonaTerritoria(latlng) {
         <b style="font-size:20px">📍 ${escHtml(zona.principal)}</b>
         <div class="muted" style="margin-top:3px">${escHtml(zona.texto)}</div>
         <div style="margin:10px 0">
-          <span class="pill ${enAmenaza ? 'warning' : 'normal'}">${enAmenaza ? '💧 ZONA CON AMENAZA DE INUNDACIÓN' : '✓ SIN ENTIDAD IDENTIFICADA EN EL PUNTO'}</span>
+          <span class="pill ${enAmenaza ? 'warning' : 'normal'}">${enAmenaza ? '💧 ZONA CARTOGRAFIADA CON AMENAZA DE INUNDACIÓN' : '✓ SIN ENTIDAD IDENTIFICADA EN EL PUNTO'}</span>
         </div>
         <div class="status" style="margin-top:6px">
           <b>IGN · IG-GIRD</b><br>
-          ${enAmenaza ? 'El punto consultado coincide con una entidad devuelta por la capa amenaza_inundacion.' : 'La consulta puntual no devolvió una entidad de amenaza_inundacion.'}
+          ${enAmenaza ? 'El punto consultado coincide con la cartografía de amenaza_inundacion del IGN.' : 'La consulta puntual no devolvió una entidad de amenaza_inundacion.'}
         </div>
         <div class="lab" style="margin-top:14px">Estaciones DGI próximas</div>
         ${estacionesHtml}
