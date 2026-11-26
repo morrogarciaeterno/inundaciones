@@ -1761,11 +1761,11 @@ function gpsOk(p){lat=p.coords.latitude;lon=p.coords.longitude;acc=p.coords.accu
 <style>
 #territoriaHeatZoomModal{display:none;position:fixed;inset:0;z-index:16000;align-items:center;justify-content:center;padding:14px;background:#020617e6;backdrop-filter:blur(5px)}
 #territoriaHeatZoomModal.open{display:flex}
-.thz-box{width:min(1140px,98vw);max-height:94vh;display:grid;grid-template-rows:52px 1fr;border:1px solid #38bdf8;border-radius:16px;overflow:hidden;background:#0b1728;box-shadow:0 24px 70px #000d}
-.thz-body{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.thz-box{width:min(1340px,98vw);height:min(94vh,940px);max-height:94vh;display:grid;grid-template-rows:52px 1fr;border:1px solid #38bdf8;border-radius:16px;overflow:hidden;background:#0b1728;box-shadow:0 24px 70px #000d}
+.thz-body{height:100%;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
 .thz-bar{display:flex;flex-wrap:wrap;gap:7px}
 .thz-bar button{padding:7px 11px;font-size:11px;font-weight:700;border-radius:8px}
-#territoriaHeatZoomMap{width:100%;height:420px;border:1px solid #293b55;border-radius:11px;background:#07111f}
+#territoriaHeatZoomMap{width:100%;height:500px;flex:1;min-height:360px;border:1px solid #293b55;border-radius:11px;background:#07111f}
 .thz-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .thz-card{padding:10px 12px;border:1px solid #2b4563;border-radius:10px;background:#081525;min-width:0}
 .thz-card span{display:block;color:#91a6bd;font-size:9px;letter-spacing:.4px}
@@ -1993,6 +1993,96 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
     const dist=found?(found.dist??found.distanceKm):undefined;
     window.openTerritoriaHeatZoom(nLat,nLon,{source,frp:found?.frpMw,km:dist,detail});
   };
+})();
+</script>
+
+
+<script>
+(function hookHydroZoom(){
+  let lastHydroCoords=null;
+  let lastHydroMeta={source:'HÍDRICOS DGI'};
+
+  const sec=document.getElementById('waterMapSection');
+  const head=sec?.querySelector('.border-head');
+  if(head&&!document.getElementById('hydroZoomBtn')){
+    const btn=document.createElement('button');
+    btn.id='hydroZoomBtn';
+    btn.type='button';
+    btn.textContent='🔍 Zoom satélite / calor';
+    btn.onclick=function(ev){
+      ev.stopPropagation();
+      let la=lastHydroCoords?.lat, lo=lastHydroCoords?.lon;
+      if((la==null||lo==null)&&typeof waterMap!=='undefined'&&waterMap?.getCenter){
+        const c=waterMap.getCenter();
+        la=c.lat; lo=c.lng;
+      }
+      if(la!=null&&lo!=null&&typeof window.openTerritoriaHeatZoom==='function'){
+        window.openTerritoriaHeatZoom(la,lo,lastHydroMeta);
+      }
+    };
+    head.appendChild(btn);
+  }
+
+  const origRenderWaterMap=window.renderWaterMap;
+  if(typeof origRenderWaterMap==='function'){
+    window.renderWaterMap=async function(view){
+      const res=await origRenderWaterMap(view);
+      const pts=(view||DGI_LAST_VIEW||[]);
+      const firstAlert=pts.find(x=>x.tr?.level==='alert'||x.tr?.level==='attention')||pts[0];
+      if(firstAlert&&Number.isFinite(Number(firstAlert.st?.latitud))&&Number.isFinite(Number(firstAlert.st?.longitud))){
+        lastHydroCoords={lat:Number(firstAlert.st.latitud),lon:Number(firstAlert.st.longitud)};
+        lastHydroMeta={
+          source:firstAlert.st.nombre||'Estación DGI',
+          detail:`Caudal ${hydroFmt(firstAlert.st.caudal)} ${firstAlert.st.unidadCaudal||'l/s'} · Altura ${hydroFmt(firstAlert.st.altura)} ${firstAlert.st.unidadAltura||'cm'}`
+        };
+      }
+      return res;
+    };
+  }
+
+  // Also attach click-to-zoom on markers inside waterLayer when populated
+  const origInitWaterMap=window.initWaterMap;
+  if(typeof origInitWaterMap==='function'){
+    window.initWaterMap=async function(){
+      await origInitWaterMap();
+      if(typeof waterLayer!=='undefined'&&waterLayer&&!waterLayer._thzHooked){
+        waterLayer._thzHooked=true;
+        waterLayer.on('click',function(ev){
+          const ll=ev.latlng||ev.layer?.getLatLng?.();
+          if(!ll||typeof window.openTerritoriaHeatZoom!=='function')return;
+          lastHydroCoords={lat:ll.lat,lon:ll.lng};
+          window.openTerritoriaHeatZoom(ll.lat,ll.lng,{source:'PUNTO HÍDRICO',detail:'Satélite + Calor · Zoom 16X'});
+        });
+      }
+    };
+  }
+})();
+</script>
+
+
+<script>
+(function hookHydroMarkerClick(){
+  const origRender=window.renderWaterMap;
+  if(typeof origRender==='function'){
+    window.renderWaterMap=async function(view){
+      const r=await origRender(view);
+      setTimeout(()=>{
+        if(typeof waterLayer!=='undefined'&&waterLayer&&typeof waterLayer.eachLayer==='function'){
+          waterLayer.eachLayer(ly=>{
+            if(ly._thzClickBound)return;
+            ly._thzClickBound=true;
+            ly.on('click',function(){
+              const ll=ly.getLatLng?.();
+              if(ll&&typeof window.openTerritoriaHeatZoom==='function'){
+                window.openTerritoriaHeatZoom(ll.lat,ll.lng,{source:'ESTACIÓN HÍDRICA',detail:'Zoom 16X · Satélite & Calor'});
+              }
+            });
+          });
+        }
+      },350);
+      return r;
+    };
+  }
 })();
 </script>
 
