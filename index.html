@@ -1757,4 +1757,250 @@ function gpsOk(p){lat=p.coords.latitude;lon=p.coords.longitude;acc=p.coords.accu
   });
 })();
 </script>
-<div class="rain-radar-modal" id="floodModal"><div class="rain-radar-shell"><div class="rain-radar-head"><div><strong>🌊 TERRITORIA · Monitor de inundaciones</strong><div class="muted">NASA VIIRS · IGN · posible afectación hídrica</div></div><button class="danger" onclick="closeFloodPopup()">✕ Cerrar</button></div><iframe class="rain-radar-frame" id="floodPopupFrame" title="Monitor de inundaciones Territoria" allow="geolocation *; fullscreen *"></iframe></div></div><div class="rain-radar-modal" id="cloudModal"><div class="cloud-shell"><div class="rain-radar-head"><div><strong>☁️ TERRITORIA · Nubosidad satelital</strong><div class="muted">GOES-19 · NOAA/NESDIS/STAR · Sudamérica</div></div><button class="danger" onclick="closeCloudPopup()">✕ Cerrar</button></div><div class="cloud-tools" id="cloudTools"><button data-cloud="geocolor" onclick="setCloudProduct('geocolor')">☁️ GeoColor</button><button data-cloud="lightning" onclick="setCloudProduct('lightning')">⚡ Nubes + rayos</button><button data-cloud="micro" onclick="setCloudProduct('micro')">⛈️ Microfísica</button><button data-cloud="airmass" onclick="setCloudProduct('airmass')">🌡️ Masa de aire</button><button onclick="refreshCloud()">↻ Actualizar</button></div><div class="cloud-stage"><div class="cloud-loading" id="cloudLoading">Cargando GOES-19…</div><img id="cloudImage" alt="Imagen satelital GOES-19 del sur de Sudamérica"><div class="cloud-meta" id="cloudMeta">GeoColor</div></div><div class="cloud-note">Fuente: NOAA/NESDIS/STAR · GOES-19. Producto satelital de observación; no es alerta oficial Territoria.</div></div></div></body></html>
+<div class="rain-radar-modal" id="floodModal"><div class="rain-radar-shell"><div class="rain-radar-head"><div><strong>🌊 TERRITORIA · Monitor de inundaciones</strong><div class="muted">NASA VIIRS · IGN · posible afectación hídrica</div></div><button class="danger" onclick="closeFloodPopup()">✕ Cerrar</button></div><iframe class="rain-radar-frame" id="floodPopupFrame" title="Monitor de inundaciones Territoria" allow="geolocation *; fullscreen *"></iframe></div></div><div class="rain-radar-modal" id="cloudModal"><div class="cloud-shell"><div class="rain-radar-head"><div><strong>☁️ TERRITORIA · Nubosidad satelital</strong><div class="muted">GOES-19 · NOAA/NESDIS/STAR · Sudamérica</div></div><button class="danger" onclick="closeCloudPopup()">✕ Cerrar</button></div><div class="cloud-tools" id="cloudTools"><button data-cloud="geocolor" onclick="setCloudProduct('geocolor')">☁️ GeoColor</button><button data-cloud="lightning" onclick="setCloudProduct('lightning')">⚡ Nubes + rayos</button><button data-cloud="micro" onclick="setCloudProduct('micro')">⛈️ Microfísica</button><button data-cloud="airmass" onclick="setCloudProduct('airmass')">🌡️ Masa de aire</button><button onclick="refreshCloud()">↻ Actualizar</button></div><div class="cloud-stage"><div class="cloud-loading" id="cloudLoading">Cargando GOES-19…</div><img id="cloudImage" alt="Imagen satelital GOES-19 del sur de Sudamérica"><div class="cloud-meta" id="cloudMeta">GeoColor</div></div><div class="cloud-note">Fuente: NOAA/NESDIS/STAR · GOES-19. Producto satelital de observación; no es alerta oficial Territoria.</div></div></div>
+<style>
+#territoriaHeatZoomModal{display:none;position:fixed;inset:0;z-index:16000;align-items:center;justify-content:center;padding:14px;background:#020617e6;backdrop-filter:blur(5px)}
+#territoriaHeatZoomModal.open{display:flex}
+.thz-box{width:min(1140px,98vw);max-height:94vh;display:grid;grid-template-rows:52px 1fr;border:1px solid #38bdf8;border-radius:16px;overflow:hidden;background:#0b1728;box-shadow:0 24px 70px #000d}
+.thz-body{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.thz-bar{display:flex;flex-wrap:wrap;gap:7px}
+.thz-bar button{padding:7px 11px;font-size:11px;font-weight:700;border-radius:8px}
+#territoriaHeatZoomMap{width:100%;height:420px;border:1px solid #293b55;border-radius:11px;background:#07111f}
+.thz-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.thz-card{padding:10px 12px;border:1px solid #2b4563;border-radius:10px;background:#081525;min-width:0}
+.thz-card span{display:block;color:#91a6bd;font-size:9px;letter-spacing:.4px}
+.thz-card strong{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:13px;color:#eaf2fb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thz-card small{display:block;margin-top:4px;font-size:9px;color:#9fb3c9;line-height:1.35}
+.thz-arrow{display:inline-block;color:#38bdf8;font-size:14px;line-height:1;transition:transform .2s}
+@media(max-width:900px){.thz-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#territoriaHeatZoomMap{height:340px}}
+@media(max-width:520px){.thz-grid{grid-template-columns:1fr}}
+</style>
+
+<div id="territoriaHeatZoomModal" onclick="if(event.target===this)closeTerritoriaHeatZoom()">
+  <div class="thz-box">
+    <div class="modalHead flex">
+      <h3 id="thzTitle" style="margin:0;color:#7dd3fc">ZOOM SATELITAL, CLIMA &amp; CALOR · TERRITORIA</h3>
+      <button class="danger" onclick="closeTerritoriaHeatZoom()">✕ Cerrar</button>
+    </div>
+    <div class="thz-body">
+      <div class="thz-bar">
+        <button type="button" class="active" id="thzBtnSat" onclick="setThzBase('sat')">SATÉLITE (ZOOM DETALLE)</button>
+        <button type="button" id="thzBtnOsm" onclick="setThzBase('osm')">MAPA / CALLES (OSM)</button>
+        <button type="button" onclick="if(thzMap&&thzCoords){thzMap.setView([thzCoords.lat,thzCoords.lon],16);thzMap.invalidateSize();}">VER DETALLE (ZOOM 16X)</button>
+        <button type="button" onclick="if(thzMap&&thzCoords){thzMap.setView([thzCoords.lat,thzCoords.lon],11);thzMap.invalidateSize();}">VER RADIO 15 KM (CALOR)</button>
+        <button type="button" class="active" id="thzBtnHalo" onclick="toggleThzHalo()">HALO TÉRMICO ON</button>
+      </div>
+      <div id="territoriaHeatZoomMap"></div>
+      <div class="thz-grid" id="thzInfoGrid"></div>
+      <div class="thz-grid" id="thzWxGrid">
+        <div class="thz-card"><span>VIENTO (DESDE)</span><strong>Consultando…</strong><small>Obteniendo viento en el punto</small></div>
+        <div class="thz-card"><span>SENTIDO (CORRE HACIA)</span><strong>—</strong><small>Rumbo de desplazamiento</small></div>
+        <div class="thz-card"><span>ESTADO DEL CIELO</span><strong>—</strong><small>Nubes y condición</small></div>
+        <div class="thz-card"><span>LLUVIA / TEMP.</span><strong>—</strong><small>Precipitación y temperatura</small></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let thzMap=null, thzBase=null, thzLayer=null, thzCoords=null, thzInfo=null, thzHaloOn=true, thzWxSeq=0;
+const thzWxCache={};
+
+function closeTerritoriaHeatZoom(){
+  if(thzMap){thzMap.remove();thzMap=null;thzBase=null;thzLayer=null;}
+  document.getElementById('territoriaHeatZoomModal')?.classList.remove('open');
+}
+
+function thzHaversineKm(lat1,lon1,lat2,lon2){
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function thzColorByFrp(frp){
+  const v=Number(frp)||0;
+  if(v>=25)return'#ef4444';
+  if(v>=8)return'#f97316';
+  return'#facc15';
+}
+
+function paintThzOverlay(){
+  if(!thzMap||!thzLayer||!thzCoords)return;
+  thzLayer.clearLayers();
+  const {lat:cLat,lon:cLon}=thzCoords;
+
+  // Radio de referencia 15 km
+  L.circle([cLat,cLon],{radius:15000,color:'#f97316',weight:1.2,opacity:.55,dashArray:'6 6',fillColor:'#f97316',fillOpacity:.015}).addTo(thzLayer);
+
+  // Pintar todos los focos VIIRS, MODIS y GOES-19 dentro de 15 km con halos transparentes
+  if(thzHaloOn){
+    const allHot=[
+      ...(typeof allViirsDetections!=='undefined'&&Array.isArray(allViirsDetections)?allViirsDetections.map(d=>({src:'VIIRS',lat:Number(d.lat),lon:Number(d.lon),frp:Number(d.frpMw)||0,tempK:d.temperatureK,when:`${d.date||''} ${d.time||''} UTC`})):[]),
+      ...(typeof goesDetections!=='undefined'&&Array.isArray(goesDetections)?goesDetections.map(d=>({src:'MODIS',lat:Number(d.lat),lon:Number(d.lon),frp:Number(d.frpMw)||0,tempK:d.temperatureK,when:d.classification||'MODIS NRT'})):[]),
+      ...(typeof goes19Detections!=='undefined'&&Array.isArray(goes19Detections)?goes19Detections.map(d=>({src:'GOES-19',lat:Number(d.lat),lon:Number(d.lon),frp:Number(d.frpMw)||0,tempK:d.temperatureK,when:d.classification||'GOES-19 FDCF'})):[])
+    ];
+    let painted=0;
+    for(const f of allHot){
+      if(!Number.isFinite(f.lat)||!Number.isFinite(f.lon))continue;
+      const dist=thzHaversineKm(cLat,cLon,f.lat,f.lon);
+      if(dist>15)continue;
+      painted++;
+      const col=thzColorByFrp(f.frp);
+      const haloR=Math.min(1200,Math.max(400,340+f.frp*18));
+      L.circle([f.lat,f.lon],{radius:haloR,color:col,weight:1.2,opacity:.72,fillColor:col,fillOpacity:.07}).addTo(thzLayer);
+      L.circleMarker([f.lat,f.lon],{radius:6.5,color:'#071018',weight:1.6,fillColor:col,fillOpacity:.88})
+        .bindTooltip(`🔥 ${esc(f.src)} · FRP ${f.frp?f.frp.toFixed(1)+' MW':'s/d'} · ${dist.toFixed(2)} km · ${esc(f.when)}`)
+        .addTo(thzLayer);
+    }
+    if(painted===0){
+      L.circle([cLat,cLon],{radius:650,color:'#f97316',weight:1.4,opacity:.75,fillColor:'#f97316',fillOpacity:.07}).addTo(thzLayer);
+    }
+  }
+
+  // Marcador central del punto seleccionado
+  L.circleMarker([cLat,cLon],{radius:8,color:'#ffffff',weight:2,fillColor:'#38bdf8',fillOpacity:1})
+    .bindTooltip('Punto seleccionado: '+cLat.toFixed(5)+', '+cLon.toFixed(5))
+    .addTo(thzLayer);
+}
+
+function setThzBase(mode){
+  if(!thzMap)return;
+  if(thzBase)thzMap.removeLayer(thzBase);
+  thzBase=mode==='osm'
+    ?L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'})
+    :L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri World Imagery'});
+  thzBase.addTo(thzMap);
+  paintThzOverlay();
+  document.getElementById('thzBtnSat')?.classList.toggle('active',mode!=='osm');
+  document.getElementById('thzBtnOsm')?.classList.toggle('active',mode==='osm');
+}
+
+function toggleThzHalo(){
+  thzHaloOn=!thzHaloOn;
+  const b=document.getElementById('thzBtnHalo');
+  if(b){
+    b.classList.toggle('active',thzHaloOn);
+    b.textContent=thzHaloOn?'HALO TÉRMICO ON':'HALO TÉRMICO OFF';
+  }
+  paintThzOverlay();
+}
+
+function thzDir(deg){
+  if(!Number.isFinite(Number(deg)))return'—';
+  const d=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+  return d[Math.round((((Number(deg)%360)+360)%360)/22.5)%16];
+}
+
+function thzSky(code, cloud, rain){
+  const c=Number(code), cl=Number(cloud)||0, r=Number(rain)||0;
+  if(r>0.1||[51,53,55,56,57,61,63,65,66,67,80,81,82].includes(c))return'Lluvia / Precipitación';
+  if([95,96,99].includes(c))return'Tormenta eléctrica';
+  if([71,73,75,77,85,86].includes(c))return'Nieve';
+  if([45,48].includes(c))return'Niebla / Bruma';
+  if(cl>=75||[2,3].includes(c))return'Nublado';
+  if(cl>=30||c===1)return'Parcialmente nublado';
+  return'Despejado';
+}
+
+function paintThzWx(wx){
+  const el=document.getElementById('thzWxGrid');
+  if(!el||!wx)return;
+  const fromDeg=Number(wx.winddirection_10m);
+  const toDeg=Number.isFinite(fromDeg)?((fromDeg+180)%360):null;
+  const fC=thzDir(fromDeg), tC=thzDir(toDeg);
+  const rot=Number.isFinite(toDeg)?(toDeg-90):0;
+  const rain=Number(wx.precipitation)||0;
+  el.innerHTML=`
+    <div class="thz-card"><span>VIENTO (DESDE)</span><strong>${Number(wx.windspeed_10m||0).toFixed(1)} km/h · ${fC}</strong><small>${Number.isFinite(fromDeg)?Math.round(fromDeg)+'° origen':''}</small></div>
+    <div class="thz-card"><span>SENTIDO (CORRE HACIA)</span><strong style="color:#86efac"><i class="thz-arrow" style="transform:rotate(${rot}deg)">➤</i> ${tC} (${Number.isFinite(toDeg)?Math.round(toDeg)+'°':'—'})</strong><small>De ${fC} hacia ${tC}</small></div>
+    <div class="thz-card"><span>ESTADO DEL CIELO</span><strong style="color:#7dd3fc">${thzSky(wx.weathercode,wx.cloudcover,rain)}</strong><small>Nubes: ${Number.isFinite(Number(wx.cloudcover))?Math.round(Number(wx.cloudcover))+'%':'—'}</small></div>
+    <div class="thz-card"><span>LLUVIA / TEMP.</span><strong style="color:${rain>0?'#fde047':'#eaf2fb'}">${rain>0?rain.toFixed(1)+' mm':'Sin lluvia (0 mm)'}</strong><small>${Number.isFinite(Number(wx.temperature_2m))?'Temp: '+Number(wx.temperature_2m).toFixed(1)+' °C':''}</small></div>
+  `;
+}
+
+async function fetchThzWx(lat0, lon0){
+  const seq=++thzWxSeq;
+  const key=`${lat0.toFixed(4)},${lon0.toFixed(4)}`;
+  if(thzWxCache[key]){paintThzWx(thzWxCache[key]);return;}
+  try{
+    const u=`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat0)}&longitude=${encodeURIComponent(lon0)}&current=temperature_2m,precipitation,weathercode,cloudcover,windspeed_10m,winddirection_10m&timezone=auto`;
+    const r=await fetch(u,{cache:'no-store'});
+    const j=await r.json();
+    if(seq!==thzWxSeq||!j?.current)return;
+    thzWxCache[key]=j.current;
+    paintThzWx(j.current);
+  }catch(_){}
+}
+
+window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
+  const nLat=Number(lat0), nLon=Number(lon0);
+  if(!Number.isFinite(nLat)||!Number.isFinite(nLon))return;
+  if(typeof loadLeaflet==='function')await loadLeaflet();
+  thzCoords={lat:nLat,lon:nLon};
+  thzInfo=info||{};
+  if(thzMap){thzMap.remove();thzMap=null;}
+
+  const fuente=thzInfo.source||thzInfo.satelite||'TERRITORIA SAT';
+  const frp=thzInfo.frp??thzInfo.frpMw??'—';
+  const dist=thzInfo.km??thzInfo.distKm??thzInfo.dist??'—';
+  const detalle=thzInfo.detail||thzInfo.time||thzInfo.fecha||'Punto monitoreado';
+
+  document.getElementById('thzTitle').textContent=`ZOOM SATELITAL, CLIMA & CALOR · ${String(fuente).toUpperCase()}`;
+  document.getElementById('thzInfoGrid').innerHTML=`
+    <div class="thz-card"><span>FUENTE / SENSOR</span><strong>${esc(fuente)}</strong><small id="thzPlaceName">📍 Buscando localidad…</small></div>
+    <div class="thz-card"><span>SEÑAL / DETALLE</span><strong style="color:#fb923c">${frp!=='—'?Number(frp).toFixed(1)+' MW':esc(fuente)}</strong><small>${esc(detalle)}</small></div>
+    <div class="thz-card"><span>DISTANCIA GPS</span><strong>${dist!=='—'?Number(dist).toFixed(1)+' km':'—'}</strong><small>Radio de vigilancia 15 km</small></div>
+    <div class="thz-card"><span>COORDENADA</span><strong>${nLat.toFixed(4)}, ${nLon.toFixed(4)}</strong><small>Satélite / Calles OSM</small></div>
+  `;
+
+  document.getElementById('territoriaHeatZoomModal').classList.add('open');
+  fetchThzWx(nLat,nLon);
+  if(typeof resolveThermalPlace==='function'){
+    resolveThermalPlace(nLat,nLon).then(place=>{
+      const pEl=document.getElementById('thzPlaceName');
+      if(pEl)pEl.textContent='📍 '+place;
+    });
+  }
+
+  setTimeout(()=>{
+    if(!window.L)return;
+    thzMap=L.map('territoriaHeatZoomMap',{preferCanvas:true,maxZoom:19}).setView([nLat,nLon],15);
+    thzLayer=L.layerGroup().addTo(thzMap);
+    setThzBase('sat');
+    paintThzOverlay();
+    thzMap.invalidateSize();
+  },100);
+};
+
+// Enganchar focusSatelliteDetection y agregar botón en la barra del monitor satelital
+(function wireTerritoriaHeatZoom(){
+  const bar=document.querySelector('#satelliteModal .satellite-map-toolbar');
+  if(bar&&!document.getElementById('thzOpenBtn')){
+    const btn=document.createElement('button');
+    btn.id='thzOpenBtn';
+    btn.type='button';
+    btn.textContent='🔍 Zoom satélite / calor';
+    btn.onclick=()=>{
+      const c=thzCoords||(typeof satelliteCritical!=='undefined'&&satelliteCritical?{lat:satelliteCritical.lat,lon:satelliteCritical.lon}:null)||(typeof lat!=='undefined'&&typeof lon!=='undefined'?{lat,lon}:{lat:-32.9295,lon:-68.8609});
+      const meta=(typeof satelliteCritical!=='undefined'&&satelliteCritical)?{source:satelliteCritical.source,km:satelliteCritical.km,detail:satelliteCritical.detail,frp:satelliteCritical.raw?.frpMw}:{source:'TERRITORIA GPS'};
+      if(c)window.openTerritoriaHeatZoom(c.lat,c.lon,meta);
+    };
+    bar.insertBefore(btn,bar.querySelector('.sat-time')||null);
+  }
+
+  const origFocus=window.focusSatelliteDetection;
+  window.focusSatelliteDetection=function(source,a,b){
+    if(typeof origFocus==='function')origFocus(source,a,b);
+    const nLat=Number(a), nLon=Number(b);
+    let found=null;
+    if(source==='VIIRS'&&Array.isArray(allViirsDetections))found=allViirsDetections.find(d=>Math.abs(Number(d.lat)-nLat)<0.0005&&Math.abs(Number(d.lon)-nLon)<0.0005);
+    if(source==='MODIS'&&Array.isArray(goesDetections))found=goesDetections.find(d=>Math.abs(Number(d.lat)-nLat)<0.0005&&Math.abs(Number(d.lon)-nLon)<0.0005);
+    if(source==='GOES19'&&Array.isArray(goes19Detections))found=goes19Detections.find(d=>Math.abs(Number(d.lat)-nLat)<0.0005&&Math.abs(Number(d.lon)-nLon)<0.0005);
+    const detail=found?(source==='VIIRS'?`${found.date||''} ${found.time||''} UTC · Conf. ${found.conf||'n/d'}`:`${found.classification||'anomalía'}`):'Detección satelital';
+    const dist=found?(found.dist??found.distanceKm):undefined;
+    window.openTerritoriaHeatZoom(nLat,nLon,{source,frp:found?.frpMw,km:dist,detail});
+  };
+})();
+</script>
+
+</body></html>
