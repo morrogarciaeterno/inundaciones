@@ -1623,18 +1623,55 @@ function smnReadableText(str) {
   return s;
 }
 
+function smnCollectPlaces(val, out) {
+  if (!val) return;
+  if (Array.isArray(val)) {
+    val.forEach(v => smnCollectPlaces(v, out));
+    return;
+  }
+  if (typeof val === 'object') {
+    ['name', 'nombre', 'areaDesc', 'area', 'province', 'provincia', 'department', 'departamento', 'locality', 'localidad', 'title', 'label'].forEach(k => {
+      if (val[k]) smnCollectPlaces(val[k], out);
+    });
+    return;
+  }
+  String(val)
+    .replace(/^📍\s*/g, '')
+    .split(/\s*(?:·|\||;|\n)+\s*/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .forEach(p => {
+      const low = p.toLowerCase();
+      if (low === 'área oficial smn' || low === 'area oficial smn' || low === 'smn') return;
+      if (!out.some(existing => existing.toLowerCase() === low)) out.push(p);
+    });
+}
+
 function smnZone(x) {
-  const raw = x.area || (Array.isArray(x.areas) ? x.areas.join(' · ') : '');
-  const parts = [...new Set(
-    String(raw || '')
-      .replace(/^📍\s*/, '')
-      .split('·')
-      .map(s => s.trim())
-      .filter(Boolean)
-  )];
-  if (parts.length) return parts.join(' · ');
-  if (x.regionClass) return x.regionClass + ' · zona exacta pendiente de confirmación';
-  return 'Zona exacta pendiente de confirmación';
+  if (!x || typeof x !== 'object') return 'Área oficial SMN';
+  const places = [];
+  smnCollectPlaces(x.area, places);
+  smnCollectPlaces(x.areas, places);
+  smnCollectPlaces(x.provinces, places);
+  smnCollectPlaces(x.provincias, places);
+  smnCollectPlaces(x.departments, places);
+  smnCollectPlaces(x.departamentos, places);
+  smnCollectPlaces(x.localities, places);
+  smnCollectPlaces(x.localidades, places);
+  smnCollectPlaces(x.zone || x.zona || x.location || x.ubicacion, places);
+
+  if (!places.length) {
+    const desc = String(x.description || x.headline || '');
+    const mArea = desc.match(/(?:en|para|sobre)\s+(?:las\s+provincias?\s+de|la\s+provincia\s+de|los\s+departamentos?\s+de|el\s+este\s+de|el\s+oeste\s+de|el\s+sur\s+de|el\s+norte\s+de|el\s+centro\s+de)?\s*([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s,-]{2,80})/i);
+    if (mArea && mArea[1]) {
+      const candidate = mArea[1].replace(/\s+(?:ser[áa]n?|podr[áa]n?|se\s+esperan?|durante|hasta|a\s+partir).*$/i, '').trim();
+      if (candidate.length >= 3) places.push(candidate);
+    }
+  }
+
+  if (places.length) return places.join(' · ');
+  if (x.regionClass) return String(x.regionClass) + ' · zona oficial SMN';
+  return 'Área oficial SMN';
 }
 
 function smnSeverityStyle(x) {
