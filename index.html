@@ -1133,6 +1133,261 @@ img,svg,canvas,video,iframe{max-width:100%}
 #nationalAlertsPanel .smn-alert-card p{font-size:14px!important;line-height:1.6!important;margin:10px 0!important}
 #nationalAlertsPanel .smn-alert-card small{font-size:10px!important;line-height:1.4!important}
 @media(max-width:700px){#nationalAlertsPanel .smn-alert-card{min-height:190px!important;padding:15px!important}#nationalAlertsPanel .smn-alert-top strong{font-size:18px!important}#nationalAlertsPanel .smn-alert-zone{font-size:12px!important}#nationalAlertsPanel .smn-alert-card p{font-size:14px!important;line-height:1.6!important}}
+</style><style id="territoria-android-maps-v1">
+/* TERRITORIA · Adaptación unificada de todos los mapas en Chrome Android (estilo Lluvia y Contingencias) */
+@media (max-width: 760px) {
+  /* 1. Popups a pantalla completa (100vw x 100dvh) sin bordes ni recortes */
+  #rainRadarModal.rain-radar-modal,
+  #floodModal.rain-radar-modal,
+  #cloudModal.rain-radar-modal,
+  #hazardModal.rain-radar-modal,
+  #snowModal.rain-radar-modal,
+  #satelliteModal.modal,
+  #lotModal.modal,
+  #treeModal.modal,
+  #territoriaHeatZoomModal {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    inset: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    overflow: hidden !important;
+  }
+
+  #rainRadarModal .rain-radar-shell,
+  #floodModal .rain-radar-shell,
+  #cloudModal .cloud-shell,
+  #hazardModal .vol-shell,
+  #snowModal .snow-shell,
+  #satelliteModal .satellite-box,
+  #lotModal .box,
+  #treeModal .box,
+  #territoriaHeatZoomModal > div {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* 2. Cabeceras compactas idénticas en todos los monitores */
+  #hazardModal .rain-radar-head,
+  #snowModal .rain-radar-head,
+  #satelliteModal .satellite-head,
+  #lotModal .modalHead,
+  #treeModal .modalHead {
+    flex: 0 0 auto !important;
+    min-height: 52px !important;
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 6px !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  }
+
+  #hazardModal .rain-radar-head strong,
+  #snowModal .rain-radar-head strong,
+  #satelliteModal .satellite-head h3,
+  #lotModal .modalHead h3,
+  #treeModal .modalHead h3 {
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+  }
+
+  #hazardModal .rain-radar-head .muted,
+  #snowModal .rain-radar-head .muted,
+  #satelliteModal .satellite-head .muted {
+    display: none !important;
+  }
+
+  #hazardModal .rain-radar-head .danger,
+  #snowModal .rain-radar-head .danger,
+  #satelliteModal .satellite-head .danger,
+  #lotModal .modalHead .danger,
+  #treeModal .modalHead .danger {
+    padding: 7px 10px !important;
+    min-height: 34px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  /* 3. Barras de herramientas en cinta horizontal deslizable (1 sola fila, sin ocupar altura) */
+  #hazardModal .vol-tools,
+  #snowModal .snow-tools,
+  #lotModal .lot-search,
+  #treeModal .controls,
+  #treeModal .tree-edit-toolbar {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  #hazardModal .vol-tools::-webkit-scrollbar,
+  #snowModal .snow-tools::-webkit-scrollbar,
+  #lotModal .lot-search::-webkit-scrollbar,
+  #treeModal .controls::-webkit-scrollbar,
+  #treeModal .tree-edit-toolbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #hazardModal .vol-tools button,
+  #snowModal .snow-tools button,
+  #lotModal .lot-search button,
+  #treeModal .controls button,
+  #treeModal .tree-edit-toolbar button {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    padding: 5px 9px !important;
+    font-size: 10px !important;
+    white-space: nowrap !important;
+  }
+
+  #lotModal .lot-search input {
+    flex: 1 0 165px !important;
+    min-height: 34px !important;
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+  }
+
+  /* 4. Contenedores de mapa protagonizando la pantalla en Volcanes y Nieve */
+  #hazardModal .vol-main {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+  #hazardModal #volMap {
+    order: 1 !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 10px !important;
+  }
+  #hazardModal .vol-side {
+    order: 2 !important;
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: 23dvh !important;
+    overflow-y: auto !important;
+    padding: 0 !important;
+  }
+  #hazardModal .vol-list,
+  #hazardModal .vol-foot {
+    display: none !important;
+  }
+
+  #snowModal .snow-grid {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+  #snowModal #snowMap {
+    order: 1 !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 10px !important;
+  }
+  #snowModal .snow-grid aside {
+    order: 2 !important;
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: 26dvh !important;
+    overflow-y: auto !important;
+    padding-right: 2px !important;
+  }
+  #snowModal .snow-state {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+  #snowModal .snow-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    margin-top: 6px !important;
+  }
+  #snowModal .snow-metrics div {
+    padding: 7px 8px !important;
+  }
+  #snowModal .snow-metrics b {
+    font-size: 13px !important;
+  }
+
+  /* 5. Lotes y Censo de Arboleda: mapa arriba grande + panel compacto deslizable abajo */
+  #lotModal .modalBody,
+  #treeModal .modalBody {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 6px !important;
+    gap: 6px !important;
+    overflow: hidden !important;
+  }
+  #lotModal #lotMap,
+  #treeModal #treeMap {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 52dvh !important;
+    border-radius: 10px !important;
+  }
+  #lotModal .side,
+  #treeModal .side {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: 25dvh !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding: 8px !important;
+  }
+
+  /* 6. Mapas embebidos en portada (Hídricos, Sísmico/GPS y Pasos Fronterizos): gestos táctiles limpios y altura óptima */
+  #waterMap,
+  #borderMap,
+  #radarMap {
+    width: 100% !important;
+    height: 52dvh !important;
+    min-height: 310px !important;
+    max-height: 430px !important;
+    touch-action: pan-x pan-y !important;
+  }
+  .leaflet-container {
+    touch-action: pan-x pan-y !important;
+  }
+  .leaflet-control-zoom a {
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+    font-size: 18px !important;
+  }
+}
 </style></head><body><main class="app">
 <header class="card head"><div class="flex"><div style="display:flex;align-items:center;gap:14px;min-width:0"><img alt="Logo Territoria" onerror="this.style.display='none'" src="logo-territoria.png" style="width:76px;height:76px;object-fit:contain;padding:3px;border-radius:14px;background:#fff"/><div><h1 style="color:#40c6ef;margin-bottom:4px">TERRITORIA</h1><div class="muted" style="font-size:12px">Plataforma inteligente de monitoreo territorial</div><div class="muted" id="updated" style="margin-top:8px">Esperando GPS…</div></div></div><div id="headGpsPlace" style="display:none!important"><span id="headGpsName"></span><span id="headGpsAccuracy"></span><span id="headGpsCoords"></span></div><span class="online" id="systemStatus">● INICIANDO</span></div></header>
 <div class="card red" id="error" style="display:none"></div>
@@ -1323,17 +1578,213 @@ async function loadEarlyWarnings(){try{const u=new URL(ALERTAS_WORKER_URL);u.sea
 
 
 // ===== TERRITORIA · FRANJA SMN AISLADA =====
-const SMN_STRIP_WORKER='https://territoria-smn-testing.elexpreso17.workers.dev/';
-let SMN_STRIP_ITEMS=[],SMN_STRIP_INDEX=0,SMN_STRIP_TIMER=null,SMN_STRIP_PAUSED=false;
-function smnEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function smnZone(x){const a=[x.area,...(Array.isArray(x.areas)?x.areas:[])].filter(Boolean);if(a.length)return [...new Set(a)].join(' · ');if(x.regionClass)return x.regionClass+' · zona exacta pendiente de confirmación';return 'Zona exacta pendiente de confirmación'}
-function smnIcon(x){const t=((x.title||'')+' '+(x.event||'')).toLowerCase();if(t.includes('torment'))return'⛈️';if(t.includes('viento'))return'💨';if(t.includes('nev')||t.includes('nieve'))return'🌨️';if(t.includes('lluv'))return'🌧️';return'⚠️'}
-function renderSmnStrip(){const track=$('smnStripTrack'),count=$('smnStripCount'),state=$('smnStripStatus');if(!track)return;if(!SMN_STRIP_ITEMS.length){track.innerHTML='<div class="smn-alert-card"><b>Sin avisos SMN recibidos</b><small>La consulta no devolvió alertas activas.</small></div>';if(count)count.textContent='0 ACTIVAS';return}const x=SMN_STRIP_ITEMS[SMN_STRIP_INDEX],d=String(x.description||'Aviso oficial recibido'),date=x.pubDate||x.updated||null;track.innerHTML=`<article class="smn-alert-card"><div class="smn-alert-top"><strong>${smnIcon(x)} ${smnEsc(x.title||x.event||'Aviso SMN')}</strong><span>${SMN_STRIP_INDEX+1} de ${SMN_STRIP_ITEMS.length}</span></div><div class="smn-alert-zone">📍 ${smnEsc(smnZone(x))}</div><p>${smnEsc(d)}</p><small>SMN${date?' · '+new Date(date).toLocaleString('es-AR'):''}</small></article>`;if(count)count.textContent=SMN_STRIP_ITEMS.length+' ACTIVAS';if(state)state.textContent=SMN_STRIP_PAUSED?'Rotación pausada':'Próxima alerta en 10 segundos';renderMendozaNow()}
-function renderMendozaNow(){const box=$('mendozaNow'),state=$('mendozaNowState');if(!box||!state)return;const zones={mzGran:['mendoza','gran mendoza','godoy cruz','guaymallen','las heras','lujan de cuyo','maipu','lavalle'],mzUco:['valle de uco','tupungato','tunuyan','san carlos'],mzEste:['san martin','junin','rivadavia','santa rosa','la paz'],mzSur:['san rafael','general alvear'],mzMalargue:['malargue']};const norm=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');let any=false;for(const [id,keys] of Object.entries(zones)){const hit=SMN_STRIP_ITEMS.some(x=>{const t=norm([x.area,...(x.areas||[]),...(x.provinces||[]),...(x.departments||[]),x.title,x.description].join(' '));return keys.some(k=>t.includes(norm(k)))});const el=$(id);if(el){el.textContent=hit?'ATENCIÓN':'NORMAL';el.className=hit?'mz-warn':'mz-ok'}if(hit)any=true}state.textContent=any?'🟡 Avisos con alcance en Mendoza':'🟢 Sin alerta activa detectada';box.classList.toggle('has-alert',any)}
-function startSmnStrip(){clearInterval(SMN_STRIP_TIMER);SMN_STRIP_TIMER=setInterval(()=>{if(SMN_STRIP_PAUSED||SMN_STRIP_ITEMS.length<2)return;SMN_STRIP_INDEX=(SMN_STRIP_INDEX+1)%SMN_STRIP_ITEMS.length;renderSmnStrip()},10000)}
-function stepSmnStrip(dir){if(!SMN_STRIP_ITEMS.length)return;SMN_STRIP_INDEX=(SMN_STRIP_INDEX+dir+SMN_STRIP_ITEMS.length)%SMN_STRIP_ITEMS.length;renderSmnStrip();startSmnStrip()}
-function toggleSmnStrip(){SMN_STRIP_PAUSED=!SMN_STRIP_PAUSED;const b=$('smnStripToggle');if(b)b.textContent=SMN_STRIP_PAUSED?'▶ Reanudar':'⏸ Pausar';renderSmnStrip()}
-async function loadSmnStrip(){const state=$('smnStripStatus');try{if(state)state.textContent='Consultando alertas oficiales…';const u=new URL(SMN_STRIP_WORKER);u.searchParams.set('feed','alerts');u.searchParams.set('_',String(Date.now()));const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();SMN_STRIP_ITEMS=Array.isArray(j.items)?j.items:[];SMN_STRIP_INDEX=0;renderSmnStrip();startSmnStrip()}catch(e){if(state)state.textContent='SMN sin actualizar: '+e.message;const c=$('smnStripCount');if(c)c.textContent='SIN ACTUALIZAR'}}
+const SMN_STRIP_WORKER = 'https://territoria-smn-testing.elexpreso17.workers.dev/?feed=all';
+const SMN_STORAGE_KEY = 'territoria_smn_last_valid_v2';
+const SMN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+let SMN_STRIP_ITEMS = [], SMN_STRIP_INDEX = 0, SMN_STRIP_TIMER = null, SMN_STRIP_PAUSED = false;
+
+function smnEsc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function smnParseTs(val) {
+  if (!val) return NaN;
+  const t = new Date(val).getTime();
+  return Number.isFinite(t) ? t : NaN;
+}
+
+function smnIsCurrent(item, nowMs) {
+  if (!item || typeof item !== 'object') return false;
+  const expMs = smnParseTs(item.expires || item.end || item.validUntil);
+  if (Number.isFinite(expMs) && expMs < nowMs) return false;
+  const refMs = smnParseTs(item.sent || item.pubDate || item.updated);
+  if (Number.isFinite(refMs) && (nowMs - refMs) > SMN_MAX_AGE_MS) return false;
+  return true;
+}
+
+function smnFilterCurrent(list) {
+  const nowMs = Date.now();
+  return (Array.isArray(list) ? list : []).filter(it => smnIsCurrent(it, nowMs));
+}
+
+function smnReadableText(str) {
+  const s = String(str ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  const letters = s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '');
+  const upperCount = (letters.match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
+  if (letters.length > 4 && upperCount / letters.length > 0.65) {
+    const lower = s.toLowerCase();
+    let out = lower.charAt(0).toUpperCase() + lower.slice(1);
+    out = out.replace(/([.!?]\s+)([a-záéíóúüñ])/g, (_, sep, ch) => sep + ch.toUpperCase());
+    return out.replace(/\bsmn\b/gi, 'SMN').replace(/\bacp\b/gi, 'ACP').replace(/\bcap\b/gi, 'CAP');
+  }
+  return s;
+}
+
+function smnZone(x) {
+  const raw = x.area || (Array.isArray(x.areas) ? x.areas.join(' · ') : '');
+  const parts = [...new Set(
+    String(raw || '')
+      .replace(/^📍\s*/, '')
+      .split('·')
+      .map(s => s.trim())
+      .filter(Boolean)
+  )];
+  if (parts.length) return parts.join(' · ');
+  if (x.regionClass) return x.regionClass + ' · zona exacta pendiente de confirmación';
+  return 'Zona exacta pendiente de confirmación';
+}
+
+function smnSeverityStyle(x) {
+  const t = `${x.title || ''} ${x.headline || ''} ${x.severity || ''} ${x.severityOriginal || ''}`.toLowerCase();
+  if (t.includes('roja') || t.includes('red') || t.includes('extreme')) {
+    return { border: '#ef4444', zoneBg: 'rgba(239,68,68,.14)', zoneColor: '#fca5a5' };
+  }
+  if (t.includes('naranja') || t.includes('orange') || t.includes('severe') || t.includes('moderate')) {
+    return { border: '#f97316', zoneBg: 'rgba(249,115,22,.14)', zoneColor: '#fdba74' };
+  }
+  return { border: '#facc15', zoneBg: 'rgba(250,204,21,.12)', zoneColor: '#fde047' };
+}
+
+function smnIcon(x) {
+  const t = ((x.title || '') + ' ' + (x.event || '')).toLowerCase();
+  if (t.includes('torment')) return '⛈️';
+  if (t.includes('zonda')) return '🌬️';
+  if (t.includes('viento')) return '💨';
+  if (t.includes('nev') || t.includes('nieve')) return '🌨️';
+  if (t.includes('lluv')) return '🌧️';
+  return '⚠️';
+}
+
+function smnFmtDate(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return String(val);
+  return d.toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+try {
+  const rawSaved = localStorage.getItem(SMN_STORAGE_KEY);
+  if (rawSaved) {
+    const validSaved = smnFilterCurrent(JSON.parse(rawSaved));
+    if (validSaved.length > 0) SMN_STRIP_ITEMS = validSaved;
+    else localStorage.removeItem(SMN_STORAGE_KEY);
+  }
+} catch (e) {}
+
+function renderSmnStrip() {
+  SMN_STRIP_ITEMS = smnFilterCurrent(SMN_STRIP_ITEMS);
+  const track = $('smnStripTrack'), count = $('smnStripCount'), state = $('smnStripStatus');
+  if (!track) return;
+  if (!SMN_STRIP_ITEMS.length) {
+    track.innerHTML = '<article class="smn-alert-card" style="border-left-color:#22c55e"><div class="smn-alert-top"><strong>🟢 Sin avisos o alertas SMN vigentes</strong></div><p>No se registran alertas generales ni avisos a corto plazo activos en este momento.</p><small>SMN Argentina</small></article>';
+    if (count) count.textContent = '0 ACTIVAS';
+    if (state) state.textContent = 'Sin avisos activos';
+    renderMendozaNow();
+    return;
+  }
+  SMN_STRIP_INDEX = ((SMN_STRIP_INDEX % SMN_STRIP_ITEMS.length) + SMN_STRIP_ITEMS.length) % SMN_STRIP_ITEMS.length;
+  const x = SMN_STRIP_ITEMS[SMN_STRIP_INDEX];
+  const sev = smnSeverityStyle(x);
+  const title = smnReadableText(x.title || x.headline || x.event || 'Aviso SMN');
+  const zone = smnZone(x);
+  const d = smnReadableText(x.description || 'Aviso oficial recibido');
+  const instTxt = smnReadableText(x.instruction || '');
+  const instHtml = instTxt ? `<p class="smn-std-inst">🛡️ ${smnEsc(instTxt)}</p>` : '';
+  const dateRaw = x.pubDate || x.updated || x.sent || null;
+  const dateFmt = dateRaw ? smnFmtDate(dateRaw) : '';
+  const feedTag = x.type === 'acp' ? ' · Corto plazo (ACP)' : ' · Alerta CAP';
+  track.innerHTML = `<article class="smn-alert-card" style="border-left-color:${sev.border}"><div class="smn-alert-top"><strong>${smnIcon(x)} ${smnEsc(title)}</strong><span>${SMN_STRIP_INDEX + 1} de ${SMN_STRIP_ITEMS.length}</span></div><div class="smn-alert-zone" style="background:${sev.zoneBg};color:${sev.zoneColor}">📍 ${smnEsc(zone)}</div><p>${smnEsc(d)}</p>${instHtml}<small>SMN${smnEsc(feedTag)}${dateFmt ? ' · ' + smnEsc(dateFmt) : ''}</small></article>`;
+  if (count) count.textContent = SMN_STRIP_ITEMS.length + ' ACTIVAS';
+  if (state) state.textContent = SMN_STRIP_PAUSED ? 'Rotación pausada' : 'Próxima alerta en 10 segundos';
+  renderMendozaNow();
+}
+
+function renderMendozaNow() {
+  const box = $('mendozaNow'), state = $('mendozaNowState');
+  if (!box || !state) return;
+  const zones = {
+    mzGran: ['mendoza', 'gran mendoza', 'godoy cruz', 'guaymallen', 'las heras', 'lujan de cuyo', 'maipu', 'lavalle'],
+    mzUco: ['valle de uco', 'tupungato', 'tunuyan', 'san carlos'],
+    mzEste: ['san martin', 'junin', 'rivadavia', 'santa rosa', 'la paz'],
+    mzSur: ['san rafael', 'general alvear'],
+    mzMalargue: ['malargue']
+  };
+  const norm = v => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  let any = false;
+  for (const [id, keys] of Object.entries(zones)) {
+    const hit = SMN_STRIP_ITEMS.some(x => {
+      const t = norm([x.area, ...(x.areas || []), ...(x.provinces || []), ...(x.departments || []), x.title, x.description].join(' '));
+      return keys.some(k => t.includes(norm(k)));
+    });
+    const el = $(id);
+    if (el) {
+      el.textContent = hit ? 'ATENCIÓN' : 'NORMAL';
+      el.className = hit ? 'mz-warn' : 'mz-ok';
+    }
+    if (hit) any = true;
+  }
+  state.textContent = any ? '🟡 Avisos con alcance en Mendoza' : '🟢 Sin alerta activa detectada';
+  box.classList.toggle('has-alert', any);
+}
+
+function startSmnStrip() {
+  clearInterval(SMN_STRIP_TIMER);
+  SMN_STRIP_TIMER = setInterval(() => {
+    if (SMN_STRIP_PAUSED || SMN_STRIP_ITEMS.length < 2) return;
+    SMN_STRIP_INDEX = (SMN_STRIP_INDEX + 1) % SMN_STRIP_ITEMS.length;
+    renderSmnStrip();
+  }, 10000);
+}
+
+function stepSmnStrip(dir) {
+  if (!SMN_STRIP_ITEMS.length) return;
+  SMN_STRIP_INDEX = (SMN_STRIP_INDEX + dir + SMN_STRIP_ITEMS.length) % SMN_STRIP_ITEMS.length;
+  renderSmnStrip();
+  startSmnStrip();
+}
+
+function toggleSmnStrip() {
+  SMN_STRIP_PAUSED = !SMN_STRIP_PAUSED;
+  const b = $('smnStripToggle');
+  if (b) b.textContent = SMN_STRIP_PAUSED ? '▶' : '⏸';
+  renderSmnStrip();
+}
+
+async function loadSmnStrip() {
+  const state = $('smnStripStatus');
+  try {
+    if (state) state.textContent = 'Consultando alertas oficiales…';
+    const sep = SMN_STRIP_WORKER.includes('?') ? '&' : '?';
+    const r = await fetch(`${SMN_STRIP_WORKER}${sep}_=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) throw Error('HTTP ' + r.status);
+    const j = await r.json();
+    if (j && j.ok !== false && Array.isArray(j.items)) {
+      const freshCurrent = smnFilterCurrent(j.items);
+      SMN_STRIP_ITEMS = freshCurrent;
+      SMN_STRIP_INDEX = 0;
+      try {
+        if (freshCurrent.length > 0) localStorage.setItem(SMN_STORAGE_KEY, JSON.stringify(freshCurrent));
+        else localStorage.removeItem(SMN_STORAGE_KEY);
+      } catch (e) {}
+    }
+    renderSmnStrip();
+    startSmnStrip();
+  } catch (e) {
+    SMN_STRIP_ITEMS = smnFilterCurrent(SMN_STRIP_ITEMS);
+    renderSmnStrip();
+    startSmnStrip();
+    if (state) state.textContent = 'SMN sin actualizar: ' + e.message;
+    const c = $('smnStripCount');
+    if (c && !SMN_STRIP_ITEMS.length) c.textContent = 'SIN ACTUALIZAR';
+  }
+}
+window.territoriaReloadAllSmn = loadSmnStrip;
 // ===== FIN FRANJA SMN AISLADA =====
 
 // ===== TERRITORIA · ALERTAS METEOROLOGICAS NACIONALES =====
@@ -2392,284 +2843,40 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
   }
 })();
 </script>
-<script id="territoria-smn-v28-patch">
+<script id="territoria-android-maps-sync">
 (function () {
-  const WORKER_ALL_URL = "https://territoria-smn-testing.elexpreso17.workers.dev/?feed=all";
-  const STORAGE_KEY = "territoria_smn_last_valid_v1";
-  const MAX_AGE_MS = 24 * 60 * 60 * 1000;
-  let items = [];
-  let idx = 0;
-  let paused = false;
-  let timer = null;
-
-  if (!document.getElementById("territoria-smn-font-std")) {
-    const st = document.createElement("style");
-    st.id = "territoria-smn-font-std";
-    st.textContent = `
-      #nationalAlertsPanel .smn-alert-card,
-      #nationalAlertsPanel .smn-alert-card * {
-        font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, Arial, sans-serif) !important;
-        letter-spacing: 0 !important;
+  function refreshAllTerritoriaMaps() {
+    const maps = [
+      typeof waterMap !== 'undefined' ? waterMap : null,
+      typeof borderMap !== 'undefined' ? borderMap : null,
+      typeof radarMap !== 'undefined' ? radarMap : null,
+      typeof satelliteMap !== 'undefined' ? satelliteMap : null,
+      typeof snowMap !== 'undefined' ? snowMap : null,
+      typeof volMap !== 'undefined' ? volMap : null,
+      typeof lotMap !== 'undefined' ? lotMap : null,
+      typeof treeMap !== 'undefined' ? treeMap : null
+    ];
+    maps.forEach(m => {
+      if (m && typeof m.invalidateSize === 'function') {
+        try { m.invalidateSize(true); } catch (e) {}
       }
-      #nationalAlertsPanel .smn-alert-top strong {
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        line-height: 1.3 !important;
-        color: #f8fafc !important;
-      }
-      #nationalAlertsPanel .smn-alert-zone {
-        font-size: 12px !important;
-        font-weight: 600 !important;
-        line-height: 1.4 !important;
-        padding: 6px 10px !important;
-        margin-top: 8px !important;
-        border-radius: 8px !important;
-      }
-      #nationalAlertsPanel .smn-alert-card p,
-      #nationalAlertsPanel .smn-alert-card .smn-std-inst {
-        font-size: 14px !important;
-        font-weight: 400 !important;
-        line-height: 1.55 !important;
-        margin: 8px 0 !important;
-        color: #e6effa !important;
-      }
-      #nationalAlertsPanel .smn-alert-card .smn-std-inst {
-        color: #bae6fd !important;
-      }
-      #nationalAlertsPanel .smn-alert-card small {
-        font-size: 11px !important;
-        font-weight: 500 !important;
-        line-height: 1.4 !important;
-        color: #94a9c2 !important;
-      }
-      @media (max-width: 768px) {
-        #nationalAlertsPanel .smn-alert-top strong {
-          font-size: 16px !important;
-        }
-        #nationalAlertsPanel .smn-alert-zone {
-          font-size: 11px !important;
-        }
-        #nationalAlertsPanel .smn-alert-card p,
-        #nationalAlertsPanel .smn-alert-card .smn-std-inst {
-          font-size: 13px !important;
-          line-height: 1.5 !important;
-        }
-        #nationalAlertsPanel .smn-alert-card small {
-          font-size: 10px !important;
-        }
-      }
-    `;
-    document.head.appendChild(st);
-  }
-
-  function parseTs(val) {
-    if (!val) return NaN;
-    const t = new Date(val).getTime();
-    return Number.isFinite(t) ? t : NaN;
-  }
-
-  function isCurrentItem(item, nowMs) {
-    if (!item || typeof item !== "object") return false;
-    const expMs = parseTs(item.expires || item.end || item.validUntil);
-    if (Number.isFinite(expMs) && expMs < nowMs) {
-      return false;
-    }
-    const refMs = parseTs(item.sent || item.pubDate || item.updated);
-    if (Number.isFinite(refMs) && (nowMs - refMs) > MAX_AGE_MS) {
-      return false;
-    }
-    return true;
-  }
-
-  function filterCurrentItems(list) {
-    const nowMs = Date.now();
-    return (Array.isArray(list) ? list : []).filter(it => isCurrentItem(it, nowMs));
-  }
-
-  try {
-    const rawSaved = localStorage.getItem(STORAGE_KEY);
-    if (rawSaved) {
-      const parsed = JSON.parse(rawSaved);
-      const validSaved = filterCurrentItems(parsed);
-      if (validSaved.length > 0) {
-        items = validSaved;
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-  } catch (e) {}
-
-  function esc(v) {
-    return String(v || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
-  function toReadableCase(str) {
-    const s = String(str || "").replace(/\s+/g, " ").trim();
-    if (!s) return "";
-    const letters = s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, "");
-    const upperCount = (letters.match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
-    if (letters.length > 4 && upperCount / letters.length > 0.65) {
-      const lower = s.toLowerCase();
-      let out = lower.charAt(0).toUpperCase() + lower.slice(1);
-      out = out.replace(/([.!?]\s+)([a-záéíóúüñ])/g, (_, sep, ch) => sep + ch.toUpperCase());
-      return out.replace(/\bsmn\b/gi, "SMN").replace(/\bacp\b/gi, "ACP").replace(/\bcap\b/gi, "CAP");
-    }
-    return s;
-  }
-
-  function cleanArea(item) {
-    const raw = item.area || (Array.isArray(item.areas) ? item.areas.join(" · ") : "");
-    const parts = [...new Set(
-      String(raw || "")
-        .replace(/^📍\s*/, "")
-        .split("·")
-        .map(s => s.trim())
-        .filter(Boolean)
-    )];
-    return parts.length ? parts.join(" · ") : "Área oficial SMN";
-  }
-
-  function normSev(item) {
-    const txt = `${item.title || ""} ${item.headline || ""} ${item.severity || ""} ${item.severityOriginal || ""}`.toLowerCase();
-    if (txt.includes("roja") || txt.includes("red") || txt.includes("extreme")) {
-      return { cls: "sev-red", label: "Alerta Roja", color: "#fca5a5", border: "#ef4444" };
-    }
-    if (txt.includes("naranja") || txt.includes("orange") || txt.includes("severe") || txt.includes("moderate")) {
-      return { cls: "sev-orange", label: "Aviso / Alerta Naranja", color: "#fdba74", border: "#f97316" };
-    }
-    return { cls: "sev-yellow", label: "Alerta Amarilla", color: "#fde047", border: "#facc15" };
-  }
-
-  function iconFor(item) {
-    const t = `${item.title || ""} ${item.event || ""}`.toLowerCase();
-    if (t.includes("torment")) return "⛈️";
-    if (t.includes("zonda")) return "🌬️";
-    if (t.includes("viento")) return "💨";
-    if (t.includes("nev") || t.includes("nieve")) return "🌨️";
-    if (t.includes("lluv")) return "🌧️";
-    return "⚠️";
-  }
-
-  function fmtDate(val) {
-    if (!val) return "";
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return String(val);
-    return d.toLocaleString("es-AR", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit"
     });
   }
 
-  function paint() {
-    items = filterCurrentItems(items);
-    const track = document.getElementById("smnStripTrack");
-    const count = document.getElementById("smnStripCount");
-    const status = document.getElementById("smnStripStatus");
-    if (!track) return;
+  window.addEventListener('resize', () => setTimeout(refreshAllTerritoriaMaps, 180));
+  window.addEventListener('orientationchange', () => setTimeout(refreshAllTerritoriaMaps, 300));
 
-    if (!items.length) {
-      if (count) count.textContent = "0 ACTIVAS";
-      track.innerHTML = `<article class="smn-alert-card" style="border-left-color:#22c55e">
-        <div class="smn-alert-top"><strong>🟢 Sin avisos o alertas SMN vigentes</strong></div>
-        <p>No se registran alertas generales ni avisos a corto plazo activos en este momento.</p>
-        <small>SMN Argentina</small>
-      </article>`;
-      if (status) status.textContent = "Sin avisos activos";
-      return;
+  // Reforzar invalidateSize al abrir los modales con mapa Leaflet en Android Chrome
+  ['openSnowPopup', 'openHazardPopup', 'openSatelliteWorkspace', 'openLots', 'openTrees'].forEach(fnName => {
+    const orig = window[fnName];
+    if (typeof orig === 'function') {
+      window[fnName] = async function (...args) {
+        const res = await orig.apply(this, args);
+        setTimeout(refreshAllTerritoriaMaps, 220);
+        setTimeout(refreshAllTerritoriaMaps, 550);
+        return res;
+      };
     }
-
-    idx = ((idx % items.length) + items.length) % items.length;
-    const x = items[idx];
-    const sev = normSev(x);
-    const title = toReadableCase(x.title || x.headline || x.event || "Aviso SMN");
-    const zone = cleanArea(x);
-    const desc = toReadableCase(x.description || "Aviso meteorológico oficial emitido por el SMN.");
-    const instText = toReadableCase(x.instruction || "");
-    const inst = instText ? `<p class="smn-std-inst">🛡️ ${esc(instText)}</p>` : "";
-    const date = fmtDate(x.sent || x.pubDate || x.updated);
-    const feedTag = x.type === "acp" ? " · Corto plazo (ACP)" : " · Alerta CAP";
-
-    track.innerHTML = `<article class="smn-alert-card ${sev.cls}" style="border-left-color:${sev.border}">
-      <div class="smn-alert-top">
-        <strong>${iconFor(x)} ${esc(title)}</strong>
-      </div>
-      <div class="smn-alert-zone">📍 ${esc(zone)}</div>
-      <p>${esc(desc)}</p>
-      ${inst}
-      <small>🏛️ SMN Argentina${esc(feedTag)}${date ? " · 🕒 " + esc(date) : ""}</small>
-    </article>`;
-
-    if (count) count.textContent = `${items.length} ACTIVAS`;
-    if (status) status.textContent = paused ? "Rotación pausada" : "Rotación automática cada 10 s";
-  }
-
-  function schedule() {
-    if (timer) clearInterval(timer);
-    if (!paused && items.length > 1) {
-      timer = setInterval(() => {
-        idx = (idx + 1) % items.length;
-        paint();
-      }, 10000);
-    }
-  }
-
-  window.stepSmnStrip = function (delta) {
-    if (!items.length) return;
-    idx = (idx + delta + items.length) % items.length;
-    paint();
-    schedule();
-  };
-
-  window.toggleSmnStrip = function () {
-    paused = !paused;
-    const btn = document.getElementById("smnStripToggle");
-    if (btn) btn.textContent = paused ? "▶" : "⏸";
-    schedule();
-  };
-
-  async function loadAllSmn() {
-    try {
-      const sep = WORKER_ALL_URL.includes("?") ? "&" : "?";
-      const r = await fetch(`${WORKER_ALL_URL}${sep}_=${Date.now()}`, { cache: "no-store" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const data = await r.json();
-      if (data && data.ok !== false && Array.isArray(data.items)) {
-        const freshCurrent = filterCurrentItems(data.items);
-        if (freshCurrent.length > 0) {
-          items = freshCurrent;
-          idx = 0;
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
-        } else {
-          items = [];
-          try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-        }
-      }
-      paint();
-      schedule();
-    } catch (e) {
-      console.warn("SMN ?feed=all error:", e);
-      items = filterCurrentItems(items);
-      paint();
-      schedule();
-    }
-  }
-
-  window.territoriaReloadAllSmn = loadAllSmn;
-
-  if (items.length > 0) {
-    paint();
-    schedule();
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadAllSmn);
-  } else {
-    loadAllSmn();
-  }
-  setInterval(loadAllSmn, 300000);
+  });
 })();
 </script></body></html>
