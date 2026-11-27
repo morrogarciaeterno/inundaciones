@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 
 <html lang="es"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/><meta content="#07111f" name="theme-color"/><title>Territoria</title><style>
 *{box-sizing:border-box}:root{--bg:#07111f;--p:#101d31;--i:#17263d;--b:#293b55;--t:#e7edf6;--m:#9baac0;--a:#38bdf8;--g:#22c55e;--y:#facc15;--o:#f97316;--r:#ef4444}html{color-scheme:dark}body{margin:0;min-height:100dvh;padding:calc(10px + env(safe-area-inset-top,0px)) calc(8px + env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) calc(8px + env(safe-area-inset-left,0px));background:var(--bg);color:var(--t);font:13px system-ui,Segoe UI,Arial}.app{max-width:1750px;margin:auto}.card{margin-bottom:10px;padding:14px;border:1px solid var(--b);border-radius:14px;background:var(--p)}h1,h2,h3,p{margin-top:0}.head{background:linear-gradient(135deg,#102b49,#153f68)}.flex{display:flex;align-items:center;justify-content:space-between;gap:10px}.online,.badge{padding:5px 9px;border:1px solid #15803d;border-radius:20px;background:#064e3b;color:#86efac;font-size:9px;font-weight:800}.muted{color:var(--m);font-size:10px}.status{display:grid;grid-template-columns:1.4fr .7fr .7fr;gap:9px}.alert{border-left:5px solid var(--g)}.yellow{border-left-color:var(--y)}.orange{border-left-color:var(--o)}.red{border-left-color:var(--r)}.big{font-size:21px;font-weight:900}.indicators{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.indicator{padding:11px;border:1px solid var(--b);border-radius:11px;background:var(--p)}.indicator span{display:block;color:var(--m);font-size:10px}.indicator strong{display:block;margin-top:5px;color:var(--a);font-size:20px}.analysis{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}.indices-layout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.metric{margin-bottom:14px}.metric-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;font-size:12px}.bar{height:9px;overflow:hidden;border-radius:20px;background:#29384d}.fill{height:100%;width:0;border-radius:20px}.rain-fill{background:#0ea5e9}.storm-fill{background:#f59e0b}.electric-fill{background:#ef4444}.hail-fill{background:linear-gradient(90deg,#22d3ee,#818cf8)}.mini-info-panel{padding:12px;border:1px solid var(--b);border-radius:11px;background:#0c1728}.solar-time{display:flex;justify-content:space-between;gap:8px;margin:7px 0;padding:7px 8px;border-radius:8px;background:var(--i);font-size:10px}.two-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px}.data-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--b);font-size:12px}.hail-status{margin-bottom:10px;padding:11px;border:1px solid #3e46aa;border-radius:10px;background:#1e2c67;color:#dbeafe;font-size:12px;line-height:1.5}.warning-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.warning-card{border-left:5px solid #22c55e}.warning-card.yellow{border-left-color:#facc15}.warning-card.orange{border-left-color:#f97316}.warning-card.red{border-left-color:#ef4444}.chip{padding:8px;border:1px solid var(--b);border-radius:8px;background:var(--i)}.chip span{display:block;color:var(--m);font-size:8px}.charts{display:grid;grid-template-columns:1fr 1fr;gap:10px}.chart{min-height:280px;padding:10px;border:1px solid var(--b);border-radius:10px;background:#0c1728;overflow:auto}.chart svg{width:100%;min-width:620px;height:245px}.radar{display:grid;grid-template-columns:2fr .7fr;gap:10px}.controls{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}button,select,input,textarea{padding:9px;border:1px solid #3b82f6;border-radius:8px;background:#172554;color:#fff}button{cursor:pointer}.active{border-color:#22c55e!important;background:#14532d!important;box-shadow:0 0 0 1px #22c55e55}.green{border-color:#16a34a;background:#14532d}.danger{border-color:#dc2626;background:#7f1d1d}#radarMap{height:470px;border:1px solid var(--b);border-radius:11px;background:#0f172a}#lotMap,#treeMap{width:100%;height:100%;min-height:0;border:1px solid var(--b);border-radius:11px;background:#0f172a}.row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--b);font-size:11px}.row span{color:var(--m)}.sismos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.list{max-height:240px;overflow:auto}.item{margin-bottom:5px;padding:8px;border:1px solid var(--b);border-radius:8px;background:#152238}.tools{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tool{display:flex;align-items:center;justify-content:space-between;gap:12px;border-left:4px solid var(--g)}.modal{display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;padding:calc(10px + env(safe-area-inset-top,0px)) 8px calc(10px + env(safe-area-inset-bottom,0px));background:#020617dd}.box{width:min(1450px,98vw);height:min(900px,94vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #2563eb;border-radius:14px;background:#0b1728}.modalHead{padding:10px 12px;border-bottom:1px solid var(--b)}.modalBody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,.75fr);grid-template-rows:minmax(0,1fr);gap:9px;padding:9px;overflow:hidden}.modalBody>#lotMap,.modalBody>#treeMap{min-height:0;align-self:stretch}.side{min-height:0;height:100%;padding:10px;border:1px solid var(--b);border-radius:10px;background:var(--p);overflow:auto}.form{display:grid;grid-template-columns:1fr 1fr;gap:7px}.form label{display:grid;gap:4px;color:var(--m);font-size:9px}.form input,.form select,.form textarea{width:100%;background:#0c1728;border-color:var(--b)}.wide{grid-column:1/-1}.form textarea{min-height:70px}.gpsdot{width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid white;box-shadow:0 0 12px #3b82f6}.lot-search{display:grid;grid-template-columns:minmax(180px,1fr) auto auto auto;gap:7px;padding:8px}.lot-search input{width:100%;background:#0c1728;border-color:var(--b)}@media(max-width:650px){.lot-search{grid-template-columns:1fr 1fr}.lot-search input{grid-column:1/-1}}.footer{text-align:center;color:#526178;padding:10px;font-size:9px}@media(max-width:900px){.status,.charts,.radar,.sismos,.tools,.modalBody,.indices-layout,.two-columns,.warning-grid{grid-template-columns:1fr}.indicators{grid-template-columns:repeat(2,1fr)}.analysis{grid-template-columns:repeat(2,1fr)}.tool{align-items:flex-start;flex-direction:column}.tool button{width:100%}#radarMap{height:390px}#lotMap,#treeMap{height:430px;min-height:430px}.modalBody{grid-template-rows:auto;overflow:auto}.side{height:auto;min-height:220px}.box{height:96vh}}@media(max-width:420px){.indicators{grid-template-columns:1fr 1fr}.form{grid-template-columns:1fr}.wide{grid-column:auto}}
@@ -1623,54 +1623,96 @@ function smnReadableText(str) {
   return s;
 }
 
-function smnCollectPlaces(val, out) {
-  if (!val) return;
+function smnIsValidPlace(val) {
+  if (typeof val === 'boolean' || typeof val === 'number') return false;
+  const s = String(val ?? '').trim();
+  if (s.length < 2 || s.length > 90) return false;
+  const low = s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const blocked = [
+    'true', 'false', 'null', 'undefined',
+    'servicio meteorologico nacional', 'area oficial smn', 'smn',
+    'alcanzar los', 'alcanzar las', 'alcanzar',
+    'velocidades', 'rafagas', 'precipitaciones', 'tormentas', 'vientos',
+    'valores', 'el area', 'la zona', 'todo el pais', 'aviso a corto plazo',
+    'alerta cap', 'corto plazo', 'viento', 'tormenta', 'lluvia', 'nieve', 'zonda',
+    'amarilla', 'naranja', 'roja', 'actual', 'vigente'
+  ];
+  if (blocked.includes(low)) return false;
+  if (/\b(?:alcanzar\s+(?:los|las)|velocidades|rafagas|km\/h|mm|vientos\s+del|superados\s+de\s+manera\s+puntual|servicio\s+meteorologico\s+nacional)\b/i.test(low)) {
+    return false;
+  }
+  if (/^(?:alcanzar|velocidades|rafagas|precipitaciones|tormentas|vientos|valores|km\/h|mm|aviso|alerta|http|el\s+area|la\s+zona)\b/i.test(low)) {
+    return false;
+  }
+  return true;
+}
+
+function smnCollectPlaces(val, out, depth) {
+  if (!val || typeof val === 'boolean' || typeof val === 'number' || (depth || 0) > 4) return;
   if (Array.isArray(val)) {
-    val.forEach(v => smnCollectPlaces(v, out));
+    val.forEach(v => smnCollectPlaces(v, out, (depth || 0) + 1));
     return;
   }
   if (typeof val === 'object') {
-    ['name', 'nombre', 'areaDesc', 'area', 'province', 'provincia', 'department', 'departamento', 'locality', 'localidad', 'title', 'label'].forEach(k => {
-      if (val[k]) smnCollectPlaces(val[k], out);
+    Object.entries(val).forEach(([k, v]) => {
+      if (/^(?:description|instruction|title|headline|subtitle|summary|detail|text|body|message|event|severity|severityoriginal|type|id|sent|expires|pubdate|updated|color|border|icon|url|link|sender|source|ok|active|areadesc|polygon|polygons|circles|geocodes|capurl|capurlresolved|areasource|identifier|references|language|status|msgtype|scope|urgency|certainty|effective|onset|regionclass|provider)$/i.test(k)) return;
+      smnCollectPlaces(v, out, (depth || 0) + 1);
     });
     return;
   }
-  String(val)
+  if (typeof val !== 'string') return;
+  val
     .replace(/^📍\s*/g, '')
     .split(/\s*(?:·|\||;|\n)+\s*/)
     .map(s => s.trim())
-    .filter(Boolean)
+    .filter(smnIsValidPlace)
     .forEach(p => {
       const low = p.toLowerCase();
-      if (low === 'área oficial smn' || low === 'area oficial smn' || low === 'smn') return;
       if (!out.some(existing => existing.toLowerCase() === low)) out.push(p);
     });
+}
+
+function smnOriginZone(x) {
+  if (!x || typeof x !== 'object') return '';
+  if (typeof x.regionClass === 'string' && x.regionClass.trim()) {
+    const rc = x.regionClass.trim();
+    if (smnIsValidPlace(rc)) return rc;
+  }
+  const srcName = String(x.id || x.capUrl || x.capUrlResolved || '');
+  const mZone = srcName.match(/(?:Tormenta|Viento|Lluvia|Nieve|Zonda|Aviso|Alerta)[_-]([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)(?:[_-]|\.xml)/i);
+  if (mZone && mZone[1]) {
+    const z = mZone[1].replace(/([a-z])([A-Z])/g, '$1 $2');
+    if (smnIsValidPlace(z)) {
+      return z.charAt(0).toUpperCase() + z.slice(1);
+    }
+  }
+  return '';
 }
 
 function smnZone(x) {
   if (!x || typeof x !== 'object') return 'Área oficial SMN';
   const places = [];
-  smnCollectPlaces(x.area, places);
-  smnCollectPlaces(x.areas, places);
-  smnCollectPlaces(x.provinces, places);
-  smnCollectPlaces(x.provincias, places);
-  smnCollectPlaces(x.departments, places);
-  smnCollectPlaces(x.departamentos, places);
-  smnCollectPlaces(x.localities, places);
-  smnCollectPlaces(x.localidades, places);
-  smnCollectPlaces(x.zone || x.zona || x.location || x.ubicacion, places);
-
-  if (!places.length) {
-    const desc = String(x.description || x.headline || '');
-    const mArea = desc.match(/(?:en|para|sobre)\s+(?:las\s+provincias?\s+de|la\s+provincia\s+de|los\s+departamentos?\s+de|el\s+este\s+de|el\s+oeste\s+de|el\s+sur\s+de|el\s+norte\s+de|el\s+centro\s+de)?\s*([A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s,-]{2,80})/i);
-    if (mArea && mArea[1]) {
-      const candidate = mArea[1].replace(/\s+(?:ser[áa]n?|podr[áa]n?|se\s+esperan?|durante|hasta|a\s+partir).*$/i, '').trim();
-      if (candidate.length >= 3) places.push(candidate);
-    }
+  if (typeof x.area === 'string' && x.area.trim()) {
+    x.area
+      .split(/\s*(?:·|\||;|\n)+\s*/)
+      .map(s => s.trim())
+      .filter(smnIsValidPlace)
+      .forEach(p => {
+        if (!places.some(e => e.toLowerCase() === p.toLowerCase())) places.push(p);
+      });
   }
-
-  if (places.length) return places.join(' · ');
-  if (x.regionClass) return String(x.regionClass) + ' · zona oficial SMN';
+  if (!places.length) {
+    if (Array.isArray(x.provinces)) smnCollectPlaces(x.provinces, places, 1);
+    if (Array.isArray(x.departments)) smnCollectPlaces(x.departments, places, 1);
+    if (Array.isArray(x.areas)) smnCollectPlaces(x.areas, places, 1);
+  }
+  const origin = smnOriginZone(x);
+  if (origin && !places.some(p => p.toLowerCase() === origin.toLowerCase())) {
+    places.push(origin);
+  }
+  if (!places.length) smnCollectPlaces(x, places, 0);
+  const cleanPlaces = places.filter(smnIsValidPlace);
+  if (cleanPlaces.length) return cleanPlaces.join(' · ');
   return 'Área oficial SMN';
 }
 
