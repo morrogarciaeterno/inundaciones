@@ -2402,6 +2402,67 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
   let paused = false;
   let timer = null;
 
+  // Inject standardized typography CSS for SMN cards so CAP and ACP look uniform
+  if (!document.getElementById("territoria-smn-font-std")) {
+    const st = document.createElement("style");
+    st.id = "territoria-smn-font-std";
+    st.textContent = `
+      #nationalAlertsPanel .smn-alert-card,
+      #nationalAlertsPanel .smn-alert-card * {
+        font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, Arial, sans-serif) !important;
+        letter-spacing: 0 !important;
+      }
+      #nationalAlertsPanel .smn-alert-top strong {
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        line-height: 1.3 !important;
+        color: #f8fafc !important;
+      }
+      #nationalAlertsPanel .smn-alert-zone {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 1.4 !important;
+        padding: 6px 10px !important;
+        margin-top: 8px !important;
+        border-radius: 8px !important;
+      }
+      #nationalAlertsPanel .smn-alert-card p,
+      #nationalAlertsPanel .smn-alert-card .smn-std-inst {
+        font-size: 13.5px !important;
+        font-weight: 400 !important;
+        line-height: 1.55 !important;
+        margin: 8px 0 !important;
+        color: #e6effa !important;
+      }
+      #nationalAlertsPanel .smn-alert-card .smn-std-inst {
+        color: #bae6fd !important;
+      }
+      #nationalAlertsPanel .smn-alert-card small {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        line-height: 1.4 !important;
+        color: #94a9c2 !important;
+      }
+      @media (max-width: 768px) {
+        #nationalAlertsPanel .smn-alert-top strong {
+          font-size: 15px !important;
+        }
+        #nationalAlertsPanel .smn-alert-zone {
+          font-size: 11px !important;
+        }
+        #nationalAlertsPanel .smn-alert-card p,
+        #nationalAlertsPanel .smn-alert-card .smn-std-inst {
+          font-size: 12.5px !important;
+          line-height: 1.5 !important;
+        }
+        #nationalAlertsPanel .smn-alert-card small {
+          font-size: 10px !important;
+        }
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
   try {
     const rawSaved = localStorage.getItem(STORAGE_KEY);
     if (rawSaved) {
@@ -2418,6 +2479,21 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function toReadableCase(str) {
+    const s = String(str || "").replace(/\s+/g, " ").trim();
+    if (!s) return "";
+    // If mostly uppercase (common in ACP feeds), convert to sentence case while preserving acronyms
+    const letters = s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, "");
+    const upperCount = (letters.match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
+    if (letters.length > 4 && upperCount / letters.length > 0.65) {
+      const lower = s.toLowerCase();
+      let out = lower.charAt(0).toUpperCase() + lower.slice(1);
+      out = out.replace(/([.!?]\s+)([a-záéíóúüñ])/g, (_, sep, ch) => sep + ch.toUpperCase());
+      return out.replace(/\bsmn\b/gi, "SMN").replace(/\bacp\b/gi, "ACP").replace(/\bcap\b/gi, "CAP");
+    }
+    return s;
   }
 
   function cleanArea(item) {
@@ -2473,8 +2549,8 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
       if (count) count.textContent = "0 ACTIVAS";
       track.innerHTML = `<article class="smn-alert-card" style="border-left-color:#22c55e">
         <div class="smn-alert-top"><strong>🟢 Sin avisos o alertas SMN vigentes</strong></div>
-        <p style="margin:8px 0;color:#dbeafe">No se registran alertas generales ni avisos a corto plazo activos en este momento.</p>
-        <small style="color:#8da5bd">SMN Argentina</small>
+        <p>No se registran alertas generales ni avisos a corto plazo activos en este momento.</p>
+        <small>SMN Argentina</small>
       </article>`;
       if (status) status.textContent = "Sin avisos activos";
       return;
@@ -2483,10 +2559,11 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
     idx = ((idx % items.length) + items.length) % items.length;
     const x = items[idx];
     const sev = normSev(x);
-    const title = x.title || x.headline || x.event || "Aviso SMN";
+    const title = toReadableCase(x.title || x.headline || x.event || "Aviso SMN");
     const zone = cleanArea(x);
-    const desc = x.description || "Aviso meteorológico oficial emitido por el SMN.";
-    const inst = x.instruction ? `<p style="margin:8px 0;color:#bae6fd;font-size:12px;line-height:1.45">🛡️ ${esc(x.instruction)}</p>` : "";
+    const desc = toReadableCase(x.description || "Aviso meteorológico oficial emitido por el SMN.");
+    const instText = toReadableCase(x.instruction || "");
+    const inst = instText ? `<p class="smn-std-inst">🛡️ ${esc(instText)}</p>` : "";
     const date = fmtDate(x.sent || x.pubDate || x.updated);
     const feedTag = x.type === "acp" ? " · Corto plazo (ACP)" : " · Alerta CAP";
 
@@ -2495,9 +2572,9 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
         <strong>${iconFor(x)} ${esc(title)}</strong>
       </div>
       <div class="smn-alert-zone">📍 ${esc(zone)}</div>
-      <p style="margin:8px 0;color:#e6effa;line-height:1.5">${esc(desc)}</p>
+      <p>${esc(desc)}</p>
       ${inst}
-      <small style="color:#8da5bd">🏛️ SMN Argentina${esc(feedTag)}${date ? " · 🕒 " + esc(date) : ""}</small>
+      <small>🏛️ SMN Argentina${esc(feedTag)}${date ? " · 🕒 " + esc(date) : ""}</small>
     </article>`;
 
     if (count) count.textContent = `${items.length} ACTIVAS`;
