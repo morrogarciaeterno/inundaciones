@@ -758,44 +758,6 @@ section.card,.pair5050,.border-stack,.tools{margin-bottom:16px}.charts{gap:12px!
  #waterMap .leaflet-popup-content{font-size:11px!important;line-height:1.3!important;margin:9px 11px!important;max-width:245px!important}
  #waterMap .leaflet-popup-content-wrapper{border-radius:10px!important}
 }
-
-/* === Territoria: adaptacion Android / Chrome (agregado aislado) === */
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%;width:100%;overflow-x:hidden}
-body{width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-y:none}
-img,svg,canvas{max-width:100%}
-#gremlinMiniMap,#waterMap,#radarMap,#borderMap,#lotMap,#treeMap,#satelliteMap,#snowMap,#volMap,#territoriaHeatZoomMap{
-  width:100%!important;max-width:100%!important;min-width:0!important;
-  position:relative;overflow:hidden;border-radius:12px;
-  -webkit-tap-highlight-color:transparent;
-}
-.leaflet-container{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#0b1727;z-index:1}
-.leaflet-control-container .leaflet-top,.leaflet-control-container .leaflet-bottom{z-index:800}
-.leaflet-control-zoom a{width:42px!important;height:42px!important;line-height:42px!important;font-size:23px!important}
-.leaflet-control-layers-toggle{width:44px!important;height:44px!important;background-size:25px 25px!important}
-.leaflet-popup-content-wrapper{max-width:calc(100vw - 42px);font-size:14px;line-height:1.35}
-.leaflet-popup-content{max-width:calc(100vw - 78px);margin:13px 16px;overflow-wrap:anywhere}
-.leaflet-control-attribution{max-width:76vw;font-size:9px;white-space:normal;text-align:right}
-@media(max-width:900px){
-  .app{width:100%;max-width:100%}.card{width:100%;max-width:100%;padding:11px}
-  #gremlinMiniMap,#waterMap,#radarMap,#borderMap,#lotMap,#treeMap,#satelliteMap,#snowMap,#volMap,#territoriaHeatZoomMap{
-    height:clamp(360px,62svh,680px)!important;min-height:360px!important;
-  }
-  .leaflet-control-zoom{margin-left:8px!important;margin-top:8px!important}
-  .leaflet-control-layers{margin-right:8px!important;margin-top:8px!important}
-}
-@media(max-width:520px){
-  body{padding-left:max(5px,env(safe-area-inset-left,0px));padding-right:max(5px,env(safe-area-inset-right,0px))}
-  .card{padding:9px;border-radius:11px}
-  #gremlinMiniMap,#waterMap,#radarMap,#borderMap,#lotMap,#treeMap,#satelliteMap,#snowMap,#volMap,#territoriaHeatZoomMap{
-    height:clamp(390px,66svh,620px)!important;min-height:390px!important;border-radius:10px;
-  }
-}
-@media(max-width:900px) and (orientation:landscape){
-  #gremlinMiniMap,#waterMap,#radarMap,#borderMap,#lotMap,#treeMap,#satelliteMap,#snowMap,#volMap,#territoriaHeatZoomMap{
-    height:calc(100svh - 24px)!important;min-height:300px!important;max-height:620px!important;
-  }
-}
-
 </style><script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script><style>
 .cloud-shell{width:96vw;height:94vh;max-width:1500px;display:flex;flex-direction:column;background:#07111f;border:1px solid #31506d;border-radius:14px;overflow:hidden}.cloud-tools{display:flex;gap:6px;flex-wrap:wrap;padding:7px 10px;background:#0b1728;border-bottom:1px solid #293b55}.cloud-tools button{background:#10263b;border:1px solid #31506b;color:#ddecff;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer}.cloud-tools button.active{background:#0369a1;border-color:#38bdf8}.cloud-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#020817;position:relative;overflow:hidden}.cloud-stage img{width:100%;height:100%;object-fit:contain}.cloud-meta{position:absolute;left:10px;bottom:10px;background:#07111fe8;border:1px solid #31506b;border-radius:8px;padding:6px 9px;color:#ddecff;font-size:10px}.cloud-loading{position:absolute;color:#8ea4bb;font-size:12px}.cloud-note{padding:7px 10px;background:#0b1728;color:#8ea4bb;font-size:10px;border-top:1px solid #293b55}@media(max-width:700px){.cloud-shell{width:100vw;height:100dvh;border:0;border-radius:0}.cloud-tools{padding:5px;gap:4px}.cloud-tools button{flex:1 1 46%;padding:7px 5px;font-size:9px}.cloud-note{font-size:9px;padding:5px 7px}}
 </style><style id="territoria-mobile-popup-fix">
@@ -2430,39 +2392,284 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
   }
 })();
 </script>
+<script id="territoria-smn-v28-patch">
+(function () {
+  const WORKER_ALL_URL = "https://territoria-smn-testing.elexpreso17.workers.dev/?feed=all";
+  const STORAGE_KEY = "territoria_smn_last_valid_v1";
+  const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+  let items = [];
+  let idx = 0;
+  let paused = false;
+  let timer = null;
 
-<script>
-/* === Territoria: recalculo seguro de mapas en Android / Chrome === */
-(function(){
-  const mapNames=['waterMapObj','radarMapObj','borderMap','lotMap','treeMap','satelliteMap','snowMap','volMap','thzMap','waterMap','radarMap'];
-  function resizeTerritoriaMaps(){
-    mapNames.forEach(function(name){
-      try{
-        const map=window[name];
-        if(map && typeof map.invalidateSize==='function') map.invalidateSize({pan:false,debounceMoveend:true});
-      }catch(e){}
+  if (!document.getElementById("territoria-smn-font-std")) {
+    const st = document.createElement("style");
+    st.id = "territoria-smn-font-std";
+    st.textContent = `
+      #nationalAlertsPanel .smn-alert-card,
+      #nationalAlertsPanel .smn-alert-card * {
+        font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, Arial, sans-serif) !important;
+        letter-spacing: 0 !important;
+      }
+      #nationalAlertsPanel .smn-alert-top strong {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        line-height: 1.3 !important;
+        color: #f8fafc !important;
+      }
+      #nationalAlertsPanel .smn-alert-zone {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 1.4 !important;
+        padding: 6px 10px !important;
+        margin-top: 8px !important;
+        border-radius: 8px !important;
+      }
+      #nationalAlertsPanel .smn-alert-card p,
+      #nationalAlertsPanel .smn-alert-card .smn-std-inst {
+        font-size: 14px !important;
+        font-weight: 400 !important;
+        line-height: 1.55 !important;
+        margin: 8px 0 !important;
+        color: #e6effa !important;
+      }
+      #nationalAlertsPanel .smn-alert-card .smn-std-inst {
+        color: #bae6fd !important;
+      }
+      #nationalAlertsPanel .smn-alert-card small {
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        line-height: 1.4 !important;
+        color: #94a9c2 !important;
+      }
+      @media (max-width: 768px) {
+        #nationalAlertsPanel .smn-alert-top strong {
+          font-size: 16px !important;
+        }
+        #nationalAlertsPanel .smn-alert-zone {
+          font-size: 11px !important;
+        }
+        #nationalAlertsPanel .smn-alert-card p,
+        #nationalAlertsPanel .smn-alert-card .smn-std-inst {
+          font-size: 13px !important;
+          line-height: 1.5 !important;
+        }
+        #nationalAlertsPanel .smn-alert-card small {
+          font-size: 10px !important;
+        }
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function parseTs(val) {
+    if (!val) return NaN;
+    const t = new Date(val).getTime();
+    return Number.isFinite(t) ? t : NaN;
+  }
+
+  function isCurrentItem(item, nowMs) {
+    if (!item || typeof item !== "object") return false;
+    const expMs = parseTs(item.expires || item.end || item.validUntil);
+    if (Number.isFinite(expMs) && expMs < nowMs) {
+      return false;
+    }
+    const refMs = parseTs(item.sent || item.pubDate || item.updated);
+    if (Number.isFinite(refMs) && (nowMs - refMs) > MAX_AGE_MS) {
+      return false;
+    }
+    return true;
+  }
+
+  function filterCurrentItems(list) {
+    const nowMs = Date.now();
+    return (Array.isArray(list) ? list : []).filter(it => isCurrentItem(it, nowMs));
+  }
+
+  try {
+    const rawSaved = localStorage.getItem(STORAGE_KEY);
+    if (rawSaved) {
+      const parsed = JSON.parse(rawSaved);
+      const validSaved = filterCurrentItems(parsed);
+      if (validSaved.length > 0) {
+        items = validSaved;
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  } catch (e) {}
+
+  function esc(v) {
+    return String(v || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function toReadableCase(str) {
+    const s = String(str || "").replace(/\s+/g, " ").trim();
+    if (!s) return "";
+    const letters = s.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, "");
+    const upperCount = (letters.match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
+    if (letters.length > 4 && upperCount / letters.length > 0.65) {
+      const lower = s.toLowerCase();
+      let out = lower.charAt(0).toUpperCase() + lower.slice(1);
+      out = out.replace(/([.!?]\s+)([a-záéíóúüñ])/g, (_, sep, ch) => sep + ch.toUpperCase());
+      return out.replace(/\bsmn\b/gi, "SMN").replace(/\bacp\b/gi, "ACP").replace(/\bcap\b/gi, "CAP");
+    }
+    return s;
+  }
+
+  function cleanArea(item) {
+    const raw = item.area || (Array.isArray(item.areas) ? item.areas.join(" · ") : "");
+    const parts = [...new Set(
+      String(raw || "")
+        .replace(/^📍\s*/, "")
+        .split("·")
+        .map(s => s.trim())
+        .filter(Boolean)
+    )];
+    return parts.length ? parts.join(" · ") : "Área oficial SMN";
+  }
+
+  function normSev(item) {
+    const txt = `${item.title || ""} ${item.headline || ""} ${item.severity || ""} ${item.severityOriginal || ""}`.toLowerCase();
+    if (txt.includes("roja") || txt.includes("red") || txt.includes("extreme")) {
+      return { cls: "sev-red", label: "Alerta Roja", color: "#fca5a5", border: "#ef4444" };
+    }
+    if (txt.includes("naranja") || txt.includes("orange") || txt.includes("severe") || txt.includes("moderate")) {
+      return { cls: "sev-orange", label: "Aviso / Alerta Naranja", color: "#fdba74", border: "#f97316" };
+    }
+    return { cls: "sev-yellow", label: "Alerta Amarilla", color: "#fde047", border: "#facc15" };
+  }
+
+  function iconFor(item) {
+    const t = `${item.title || ""} ${item.event || ""}`.toLowerCase();
+    if (t.includes("torment")) return "⛈️";
+    if (t.includes("zonda")) return "🌬️";
+    if (t.includes("viento")) return "💨";
+    if (t.includes("nev") || t.includes("nieve")) return "🌨️";
+    if (t.includes("lluv")) return "🌧️";
+    return "⚠️";
+  }
+
+  function fmtDate(val) {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleString("es-AR", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit"
     });
-    window.dispatchEvent(new Event('resize'));
   }
-  let timer;
-  function scheduleResize(){
-    clearTimeout(timer);
-    requestAnimationFrame(function(){
-      resizeTerritoriaMaps();
-      timer=setTimeout(resizeTerritoriaMaps,220);
-    });
+
+  function paint() {
+    items = filterCurrentItems(items);
+    const track = document.getElementById("smnStripTrack");
+    const count = document.getElementById("smnStripCount");
+    const status = document.getElementById("smnStripStatus");
+    if (!track) return;
+
+    if (!items.length) {
+      if (count) count.textContent = "0 ACTIVAS";
+      track.innerHTML = `<article class="smn-alert-card" style="border-left-color:#22c55e">
+        <div class="smn-alert-top"><strong>🟢 Sin avisos o alertas SMN vigentes</strong></div>
+        <p>No se registran alertas generales ni avisos a corto plazo activos en este momento.</p>
+        <small>SMN Argentina</small>
+      </article>`;
+      if (status) status.textContent = "Sin avisos activos";
+      return;
+    }
+
+    idx = ((idx % items.length) + items.length) % items.length;
+    const x = items[idx];
+    const sev = normSev(x);
+    const title = toReadableCase(x.title || x.headline || x.event || "Aviso SMN");
+    const zone = cleanArea(x);
+    const desc = toReadableCase(x.description || "Aviso meteorológico oficial emitido por el SMN.");
+    const instText = toReadableCase(x.instruction || "");
+    const inst = instText ? `<p class="smn-std-inst">🛡️ ${esc(instText)}</p>` : "";
+    const date = fmtDate(x.sent || x.pubDate || x.updated);
+    const feedTag = x.type === "acp" ? " · Corto plazo (ACP)" : " · Alerta CAP";
+
+    track.innerHTML = `<article class="smn-alert-card ${sev.cls}" style="border-left-color:${sev.border}">
+      <div class="smn-alert-top">
+        <strong>${iconFor(x)} ${esc(title)}</strong>
+      </div>
+      <div class="smn-alert-zone">📍 ${esc(zone)}</div>
+      <p>${esc(desc)}</p>
+      ${inst}
+      <small>🏛️ SMN Argentina${esc(feedTag)}${date ? " · 🕒 " + esc(date) : ""}</small>
+    </article>`;
+
+    if (count) count.textContent = `${items.length} ACTIVAS`;
+    if (status) status.textContent = paused ? "Rotación pausada" : "Rotación automática cada 10 s";
   }
-  window.addEventListener('load',function(){setTimeout(scheduleResize,120)},{once:true});
-  window.addEventListener('orientationchange',function(){setTimeout(scheduleResize,280)});
-  if(window.visualViewport) window.visualViewport.addEventListener('resize',scheduleResize,{passive:true});
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)scheduleResize()});
-  const ids=['gremlinMiniMap','waterMap','radarMap','borderMap','lotMap','treeMap','satelliteMap','snowMap','volMap','territoriaHeatZoomMap'];
-  if('ResizeObserver' in window){
-    const ro=new ResizeObserver(scheduleResize);
-    document.addEventListener('DOMContentLoaded',function(){ids.forEach(function(id){const el=document.getElementById(id);if(el)ro.observe(el)})},{once:true});
+
+  function schedule() {
+    if (timer) clearInterval(timer);
+    if (!paused && items.length > 1) {
+      timer = setInterval(() => {
+        idx = (idx + 1) % items.length;
+        paint();
+      }, 10000);
+    }
   }
-  window.territoriaResizeMaps=scheduleResize;
+
+  window.stepSmnStrip = function (delta) {
+    if (!items.length) return;
+    idx = (idx + delta + items.length) % items.length;
+    paint();
+    schedule();
+  };
+
+  window.toggleSmnStrip = function () {
+    paused = !paused;
+    const btn = document.getElementById("smnStripToggle");
+    if (btn) btn.textContent = paused ? "▶" : "⏸";
+    schedule();
+  };
+
+  async function loadAllSmn() {
+    try {
+      const sep = WORKER_ALL_URL.includes("?") ? "&" : "?";
+      const r = await fetch(`${WORKER_ALL_URL}${sep}_=${Date.now()}`, { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const data = await r.json();
+      if (data && data.ok !== false && Array.isArray(data.items)) {
+        const freshCurrent = filterCurrentItems(data.items);
+        if (freshCurrent.length > 0) {
+          items = freshCurrent;
+          idx = 0;
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
+        } else {
+          items = [];
+          try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        }
+      }
+      paint();
+      schedule();
+    } catch (e) {
+      console.warn("SMN ?feed=all error:", e);
+      items = filterCurrentItems(items);
+      paint();
+      schedule();
+    }
+  }
+
+  window.territoriaReloadAllSmn = loadAllSmn;
+
+  if (items.length > 0) {
+    paint();
+    schedule();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadAllSmn);
+  } else {
+    loadAllSmn();
+  }
+  setInterval(loadAllSmn, 300000);
 })();
-</script>
-
-</body></html>
+</script></body></html>
