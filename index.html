@@ -2392,4 +2392,154 @@ window.openTerritoriaHeatZoom=async function(lat0, lon0, info={}){
   }
 })();
 </script>
+
+<script id="territoria-smn-v28-patch">
+(function () {
+  const WORKER_ALL_URL = "https://territoria-smn-testing.elexpreso17.workers.dev/?feed=all";
+  let items = [];
+  let idx = 0;
+  let paused = false;
+  let timer = null;
+
+  function esc(v) {
+    return String(v || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function cleanArea(item) {
+    const raw = item.area || (Array.isArray(item.areas) ? item.areas.join(" · ") : "");
+    const parts = [...new Set(
+      String(raw || "")
+        .replace(/^📍\s*/, "")
+        .split("·")
+        .map(s => s.trim())
+        .filter(Boolean)
+    )];
+    return parts.length ? parts.join(" · ") : "Área oficial SMN";
+  }
+
+  function normSev(item) {
+    const txt = `${item.title || ""} ${item.headline || ""} ${item.severity || ""} ${item.severityOriginal || ""}`.toLowerCase();
+    if (txt.includes("roja") || txt.includes("red") || txt.includes("extreme")) {
+      return { cls: "sev-red", label: "Alerta Roja", color: "#fca5a5", border: "#ef4444" };
+    }
+    if (txt.includes("naranja") || txt.includes("orange") || txt.includes("severe") || txt.includes("moderate")) {
+      return { cls: "sev-orange", label: "Aviso / Alerta Naranja", color: "#fdba74", border: "#f97316" };
+    }
+    return { cls: "sev-yellow", label: "Alerta Amarilla", color: "#fde047", border: "#facc15" };
+  }
+
+  function iconFor(item) {
+    const t = `${item.title || ""} ${item.event || ""}`.toLowerCase();
+    if (t.includes("torment")) return "⛈️";
+    if (t.includes("zonda")) return "🌬️";
+    if (t.includes("viento")) return "💨";
+    if (t.includes("nev") || t.includes("nieve")) return "🌨️";
+    if (t.includes("lluv")) return "🌧️";
+    return "⚠️";
+  }
+
+  function fmtDate(val) {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleString("es-AR", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit"
+    });
+  }
+
+  function paint() {
+    const track = document.getElementById("smnStripTrack");
+    const count = document.getElementById("smnStripCount");
+    const status = document.getElementById("smnStripStatus");
+    if (!track) return;
+
+    if (!items.length) {
+      if (count) count.textContent = "0 ACTIVAS";
+      track.innerHTML = `<article class="smn-alert-card" style="border-left-color:#22c55e">
+        <div class="smn-alert-top"><strong>🟢 Sin avisos o alertas SMN vigentes</strong><span>0 de 0</span></div>
+        <p style="margin:8px 0;color:#dbeafe">No se registran alertas generales ni avisos a corto plazo activos en este momento.</p>
+        <small style="color:#8da5bd">SMN Argentina</small>
+      </article>`;
+      if (status) status.textContent = "Sin avisos activos";
+      return;
+    }
+
+    idx = ((idx % items.length) + items.length) % items.length;
+    const x = items[idx];
+    const sev = normSev(x);
+    const title = x.title || x.headline || x.event || "Aviso SMN";
+    const zone = cleanArea(x);
+    const desc = x.description || "Aviso meteorológico oficial emitido por el SMN.";
+    const inst = x.instruction ? `<p style="margin:8px 0;color:#bae6fd;font-size:12px;line-height:1.45">🛡️ ${esc(x.instruction)}</p>` : "";
+    const date = fmtDate(x.sent || x.pubDate || x.updated);
+    const feedTag = x.type === "acp" ? " · Corto plazo (ACP)" : " · Alerta CAP";
+
+    track.innerHTML = `<article class="smn-alert-card ${sev.cls}" style="border-left-color:${sev.border}">
+      <div class="smn-alert-top">
+        <strong>${iconFor(x)} ${esc(title)}</strong>
+        <span style="color:${sev.color}">${sev.label} · ${idx + 1} de ${items.length}</span>
+      </div>
+      <div class="smn-alert-zone">📍 ${esc(zone)}</div>
+      <p style="margin:8px 0;color:#e6effa;line-height:1.5">${esc(desc)}</p>
+      ${inst}
+      <small style="color:#8da5bd">🏛️ SMN Argentina${esc(feedTag)}${date ? " · 🕒 " + esc(date) : ""}</small>
+    </article>`;
+
+    if (count) count.textContent = `${items.length} ACTIVAS`;
+    if (status) status.textContent = paused ? "Rotación pausada" : "Rotación automática cada 10 s";
+  }
+
+  function schedule() {
+    if (timer) clearInterval(timer);
+    if (!paused && items.length > 1) {
+      timer = setInterval(() => {
+        idx = (idx + 1) % items.length;
+        paint();
+      }, 10000);
+    }
+  }
+
+  window.stepSmnStrip = function (delta) {
+    if (!items.length) return;
+    idx = (idx + delta + items.length) % items.length;
+    paint();
+    schedule();
+  };
+
+  window.toggleSmnStrip = function () {
+    paused = !paused;
+    const btn = document.getElementById("smnStripToggle");
+    if (btn) btn.textContent = paused ? "▶" : "⏸";
+    schedule();
+  };
+
+  async function loadAllSmn() {
+    try {
+      const r = await fetch(WORKER_ALL_URL, { cache: "no-store" });
+      const data = await r.json();
+      if (data && Array.isArray(data.items)) {
+        items = data.items;
+        idx = 0;
+        paint();
+        schedule();
+      }
+    } catch (e) {
+      console.warn("SMN ?feed=all error:", e);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadAllSmn);
+  } else {
+    loadAllSmn();
+  }
+  setInterval(loadAllSmn, 300000);
+})();
+</script>
+
 </body></html>
